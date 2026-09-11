@@ -1,0 +1,653 @@
+# API da Agenda — para integração externa
+
+Especificação dos sete endpoints HTTP que expõem a agenda da empresa: consultar
+disponibilidade, marcar, consultar, cancelar e remarcar agendamentos.
+
+> **Os nomes de rota e de campo vêm da clínica onde o sistema nasceu, e ficaram
+> por contrato** — mudá-los quebraria quem já integra. Onde a API diz
+> procedimento, leia serviço (`/procedimentos`, os campos `procedimento` e
+> `procedimentos`); onde diz consulta, leia agendamento (`/consultas`, o campo
+> `consultas` e o `consulta_id`, que é o id do agendamento). Vale também para
+> códigos de `motivo` como `paciente_nao_encontrado` e `exige_avaliacao` (a
+> recusa da porta de entrada).
+
+> **Status: implantada e testada ponta a ponta.** Os catorze cenários deste
+> documento foram exercitados por HTTP contra o projeto real — conflito,
+> expediente, idempotência, conferência de dono, fuso e token revogado.
+
+> ### ⚠️ A Letícia não usa esta API
+>
+> O Agente de IA da empresa mora **dentro deste projeto** (a Edge Function
+> `whatsapp`) e chama as funções SQL da `0004` **direto, por RPC** — sem passar
+> por HTTP nem por token. Ver a seção 8 do [`DATABASE.md`](DATABASE.md).
+>
+> Esta API existe para **quem está de fora**: outro sistema da empresa, uma
+> automação, um parceiro. As duas portas descem para as mesmas funções SQL, e é
+> isso que impede uma de oferecer horário que a outra recusa.
+
+- **Quem chama:** qualquer cliente HTTP externo, com token
+- **Onde roda:** Supabase Edge Function `agenda`
+  ([`supabase/functions/agenda/index.ts`](supabase/functions/agenda/index.ts))
+- **Regras de negócio:** funções SQL da migração
+  [`0004_api_agente.sql`](supabase/migrations/0004_api_agente.sql)
+- **Banco:** as garantias já existem — ver [`DATABASE.md`](DATABASE.md)
+
+> **A Edge Function não tem dependência nenhuma, e isso é obrigatório.** O
+> runtime sobe com `--no-remote` e recusa buscar qualquer módulo externo no
+> boot — com um `import` de `supabase-js`, a função inteira morre com
+> `BOOT_ERROR` antes de executar uma linha. Toda conversa com o banco é `fetch`
+> direto no PostgREST. Se for acrescentar biblioteca, saiba que não vai subir.
+
+---
+
+## 1. O princípio que governa todas as respostas
+
+**Quem lê a resposta vai falar com um cliente.** Não é uma tela renderizando um
+objeto; é um agente que precisa dizer uma frase no WhatsApp.
+
+Por isso toda resposta traz:
+
+- **`mensagem`** — a frase pronta, em português, com nome de pessoa e de
+  profissional dentro. O agente fala isso e acabou.
+- **os campos soltos que compõem a frase** — para quem consome usar programaticamente
+  (agendar lembrete, gravar log) ou para o agente reescrever com as próprias
+  palavras, se você preferir controlar o texto pelo prompt.
+
+Nada além disso. Nenhum endpoint devolve o registro inteiro do agendamento.
+
+### Recusa também é resposta
+
+"Esse horário já está ocupado" não é erro: é a resposta certa para a pergunta que
+foi feita, e o cliente precisa ouvi-la. Por isso **recusa de negócio volta com
+HTTP 200**, com `ok: false`, um `motivo` em código e a `mensagem` falável.
+
+| Situação | HTTP | Corpo |
+|---|---|---|
+| Deu certo | 200 | `ok: true` + campos + `mensagem` |
+| Recusa de negócio (ocupado, não encontrado, fora do expediente) | 200 | `ok: false` + `motivo` + `mensagem` |
+| Campo obrigatório faltando ou data que não dá para entender | 200 | `ok: false` + `motivo` + `mensagem` |
+| Corpo não é JSON válido, ou método HTTP errado na rota | 400 | `ok: false` + `motivo` + `mensagem` |
+| Token inválido, revogado ou ausente | 401 | `ok: false` + `motivo` + `mensagem` |
+| Rota inexistente | 404 | `ok: false` + `motivo` + `mensagem` |
+| Falha inesperada | 500 | `ok: false` + `motivo` + `mensagem` |
+
+Isso mantém o fluxo de quem consome simples: **só quebra o que é problema de configuração
+ou bug.** Tudo que o cliente precisa ouvir chega como 200 e segue o caminho
+normal do fluxo.
+
+> **Campo faltando volta 200, não 400** — e é de propósito. Quando o agente não
+> extraiu a data da conversa, o certo é ele dizer *"Faltou alguma informação
+> para eu concluir."* e perguntar de novo, não o fluxo de quem chama morrer. O 400 fica
+> reservado para o que é erro de quem programou o nó: corpo que não é JSON e
+> verbo HTTP trocado.
+
+### `motivo` é para a máquina, `mensagem` é para a pessoa
+
+Os dois campos nunca se misturam, e **`mensagem` existe em toda resposta**,
+inclusive nas falhas técnicas:
+
+- **`motivo`** — código curto (`horario_ocupado`, `token_invalido`). Serve para
+  quem consome desviar o fluxo e para você entender o log. A pessoa nunca vê.
+- **`mensagem`** — o que pode ser dito em voz alta. Em 401 e 500 ela é
+  deliberadamente vaga: *"Não consegui acessar a agenda agora. Só um instante, por favor."*
+  Nada de "token inválido" chegando ao WhatsApp de ninguém.
+
+**Por que falha técnica também tem frase:** sem ela, o agente recebe uma resposta
+sem texto e improvisa — ou, pior, repassa o detalhe técnico para o cliente. Uma
+frase neutra sempre disponível é o que impede os dois.
+
+**Única exceção:** os endpoints de listagem (3.1 e 3.2) não têm `mensagem` no
+sucesso. Ninguém fala "aqui estão os profissionais" — aquilo é dado interno que o
+agente usa para montar a chamada seguinte. Em falha, eles têm.
+
+### Datas
+
+Entram em ISO 8601 com fuso (`2026-05-14T09:00:00-03:00`) ou sem
+(`2026-05-14T09:00`, interpretado no fuso da empresa, gravado em
+`configuracoes_clinica.fuso_horario`).
+
+Saem **sempre em UTC**, no ISO completo que o PostgREST usa para `timestamptz`:
+`2026-05-14T12:00:00+00:00` é 09:00 em São Paulo. Vale para `data_hora`,
+`horarios[]` e `proxima_data` — todos são `timestamptz` no banco.
+
+> **Se quem consome for formatar a hora sozinho, precisa converter.** Ler `data_hora`
+> e mostrar "12:00" para quem marcou às 09:00 é o erro fácil de cometer aqui. A
+> `mensagem` já vem convertida para o fuso da empresa e por extenso — é
+> exatamente para isso que ela existe.
+
+---
+
+## 2. Autenticação
+
+Cabeçalho próprio, com token gerado no **menu do usuário → Token e API**:
+
+```
+X-Api-Key: odk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Não é a `service_role key`, e isso é o ponto.** A camada que fala com o agente
+é a que mais recebe texto de estranho — uma injeção de prompt bem-feita numa
+mensagem de WhatsApp, com a `service_role`, viraria acesso total ao banco. Com
+este token, o estrago máximo de um agente comprometido é bagunçar a agenda.
+
+O token é guardado **hasheado** (SHA-256). O sistema confere se o que chegou é
+válido, mas não consegue reconstruí-lo — por isso ele **só é exibido no momento
+da criação**, e é nesse mesmo momento que a tela mostra os cURLs abaixo já
+preenchidos com ele.
+
+Token revogado passa a devolver 401 na chamada seguinte — com `motivo:
+"token_revogado"` e a `mensagem` neutra, para o cliente não ficar sabendo que a
+empresa está com problema de configuração.
+
+---
+
+## 3. Endpoints
+
+Base: `https://SEU_REF.supabase.co/functions/v1/agenda`
+
+Os sete cURLs abaixo são para colar no **Import cURL** de qualquer cliente HTTP, que
+monta o nó inteiro sozinho. Na página Token e API eles aparecem com a URL real
+já preenchida — e, logo depois de criar um token, com ele também.
+
+> **Só o `X-Api-Key` vai no cabeçalho — não existe `Authorization` aqui.** A
+> função está publicada com `verify_jwt = false`, justamente para que a
+> autenticação seja o nosso token e não a `anon key` do Supabase. Se algum dia
+> ela for reimplantada com o padrão (`verify_jwt = true`), **os sete cURLs param
+> de funcionar de uma vez**, com 401 vindo da borda do Supabase, antes de chegar
+> no nosso código — e a resposta nem vai ter `mensagem`. É a primeira coisa a
+> conferir se tudo quebrar junto depois de um deploy.
+
+---
+
+### 3.1. Listar profissionais — `GET /profissionais`
+
+O agente carrega esta lista antes de marcar, para saber quem é quem e poder
+mandar o `profissional_id`.
+
+**Precisa:** nada.
+
+**Devolve:** só os ativos — o que identifica e os serviços que cada um faz.
+
+```json
+{
+  "ok": true,
+  "profissionais": [
+    { "id": "3f2a…", "nome": "Henrique Salles", "faz_todos": true,  "servicos": [] },
+    { "id": "9c81…", "nome": "Marina Andrade",  "faz_todos": false, "servicos": ["Coloração", "Mechas"] }
+  ]
+}
+```
+
+**`faz_todos` e `servicos` (migração `0027`).** Profissional sem lista faz
+todos os serviços (`faz_todos: true`); com lista, só os de `servicos` (os
+ativos). Os dois campos existem juntos porque `servicos: []` sozinho não
+distingue "faz tudo" de "a lista dele só tem serviço desligado" — e as duas
+coisas pedem respostas opostas.
+
+Sem cor, sem jornada, sem horário: nada disso muda o que o agente fala.
+
+```bash
+curl -X GET 'https://SEU_REF.supabase.co/functions/v1/agenda/profissionais' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI'
+```
+
+---
+
+### 3.2. Listar serviços — `GET /procedimentos`
+
+Para o agente saber o que a empresa oferece e não inventar serviço que não
+existe.
+
+**Precisa:** nada.
+
+**Devolve:** apenas os nomes dos serviços ativos, em texto.
+
+```json
+{
+  "ok": true,
+  "procedimentos": [
+    "Alinhadores Transparentes",
+    "Avaliação Odontológica",
+    "Carga Imediata",
+    "Clareamento Dental",
+    "Enxerto Gengival",
+    "Enxerto Ósseo",
+    "Extração de Siso",
+    "Facetas em Resina",
+    "Gengivoplastia",
+    "Implante Unitário",
+    "Lentes de Contato",
+    "Levantamento de Seio Maxilar",
+    "Limpeza e Profilaxia",
+    "Placa de Bruxismo",
+    "Prótese Dentária",
+    "Prótese Fixa sobre Implantes",
+    "Raspagem",
+    "Tratamento de Canal",
+    "Tratamento de DTM",
+    "Tratamento Periodontal"
+  ]
+}
+```
+
+O exemplo acima é o kit da clínica odontológica; cada empresa vê os
+**próprios** serviços ativos, **em ordem alfabética** — a consulta ordena por
+nome, não por cadastro. Serviço desativado na página Serviços some da lista
+sem precisar mexer no agente.
+
+Sem ID de propósito: `POST /marcar` recebe o **nome**, não um id — então um id
+aqui não teria uso nenhum.
+
+> ⚠️ **É por isto que este endpoint importa.** Desde a migração `0023` o nome
+> tem que bater com um serviço **ativo** do catálogo, exatamente como
+> escrito aqui. Não é texto livre: `Limpeza` é recusado, `Limpeza e Profilaxia`
+> passa. Consulte esta lista antes de marcar, e não guarde os nomes — o
+> catálogo é editável na tela de Serviços.
+
+```bash
+curl -X GET 'https://SEU_REF.supabase.co/functions/v1/agenda/procedimentos' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI'
+```
+
+---
+
+### 3.3. Consultar disponibilidade — `POST /disponibilidade`
+
+**Precisa:** `data`.
+**Opcionais:** `hora`, `procedimento`, `profissional_id`, `duracao_minutos`
+(padrão: a duração do serviço, ou 60 sem serviço).
+
+> **Mande o `procedimento` sempre que souber** (migração `0027`). Com ele, só
+> entram os horários de **quem faz** aquele serviço, na duração dele. Se o
+> serviço passa pela porta de entrada, os horários são os **da porta** — que é
+> o que vai ser marcado. Sem ele, a resposta é a de antes: todos os
+> profissionais, 60 minutos.
+
+A `hora` é opcional porque o cliente pergunta de dois jeitos, e os dois são
+comuns: *"pode ser quinta às 9?"* e *"que horários você tem quinta?"*.
+
+**Com `hora`** — responde à pergunta feita. O campo `horarios` traz o dia
+inteiro, livre; `disponivel` responde especificamente pelo horário perguntado.
+
+```json
+{
+  "ok": true,
+  "disponivel": false,
+  "horarios": ["2026-05-14T13:30:00+00:00", "2026-05-14T17:00:00+00:00"],
+  "mensagem": "quinta, 14/05/2026 às 09:00 já está ocupado, mas tenho 10:30 e 14:00."
+}
+```
+
+São três frases possíveis aqui, conforme o caso:
+
+| Caso | `mensagem` |
+|---|---|
+| Livre | `quinta, 14/05/2026 às 09:00 está livre, posso marcar.` |
+| Ocupado, com alternativa no dia | `quinta, 14/05/2026 às 09:00 já está ocupado, mas tenho 10:30 e 14:00.` |
+| Ocupado, e o dia acabou | `quinta, 14/05/2026 às 09:00 já está ocupado e não tenho outro horário nesse dia.` |
+
+**Sem `hora`** — lista o dia. O campo `disponivel` não aparece, porque não houve
+pergunta específica a responder:
+
+```json
+{
+  "ok": true,
+  "horarios": [
+    "2026-05-14T12:00:00+00:00",
+    "2026-05-14T13:30:00+00:00",
+    "2026-05-14T17:00:00+00:00"
+  ],
+  "mensagem": "quinta, 14/05/2026, tenho 09:00, 10:30 e 14:00."
+}
+```
+
+**Dia sem vaga** — devolve o dia mais próximo que tem. Sem isso o agente entra
+num pinga-pinga de perguntar dia a dia:
+
+```json
+{
+  "ok": true,
+  "horarios": [],
+  "proxima_data": "2026-05-15T11:00:00+00:00",
+  "mensagem": "Não tenho horário em quinta, 14/05/2026. O mais próximo é sexta, 15/05/2026, às 08:00."
+}
+```
+
+Se não houver vaga nenhuma na busca (ela varre 60 dias), `proxima_data` vem
+`null` e a frase é *"Não encontrei horário disponível nos próximos dias."*
+
+Os horários respeitam a jornada do profissional, os bloqueios (férias, feriado)
+e os agendamentos já marcados. Sem `profissional_id`, considera todos os ativos
+— que fazem o `procedimento`, quando ele vem.
+
+**Pediu um profissional que não faz o serviço?** A resposta não é uma lista
+vazia (que pareceria agenda lotada), e sim quem faz:
+
+```json
+{
+  "ok": false,
+  "motivo": "profissional_nao_faz",
+  "quem_faz": ["Marina Andrade"],
+  "mensagem": "Esse profissional não faz esse serviço. Quem faz: Marina Andrade."
+}
+```
+
+**A grade anda de 30 em 30 minutos.** É o passo padrão da função SQL, e é o que
+faz a lista sair "09:00, 09:30, 10:00" em vez de minuto a minuto. A `duracao_minutos`
+é outra coisa: ela diz quanto tempo precisa caber a partir de cada horário
+oferecido — com 90 minutos, um vão de uma hora entre dois agendamentos deixa de
+aparecer na lista.
+
+**Recusas:** `data_invalida`, `profissional_inexistente`,
+`procedimento_desconhecido`, `profissional_nao_faz`.
+
+```bash
+curl -X POST 'https://SEU_REF.supabase.co/functions/v1/agenda/disponibilidade' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "data": "2026-05-14",
+    "hora": "09:00",
+    "procedimento": "Coloração",
+    "profissional_id": "3f2a…"
+  }'
+```
+
+---
+
+### 3.4. Marcar agendamento — `POST /marcar`
+
+**Precisa:** `nome`, `whatsapp`, `procedimento` (**nome exato do catálogo** —
+veja `GET /procedimentos`), `data_hora`.
+**Opcionais:** `profissional_id`, `duracao_minutos`, `chave_externa`, `interesse`.
+
+> **`duracao_minutos` deixou de ter padrão fixo.** Omitido, vale a duração
+> cadastrada naquele serviço — no kit de clínica, a avaliação ocupa 30 minutos,
+> o resto 60. Quem já mandava um número continua mandando, e ele continua
+> ganhando.
+
+**Sem `profissional_id`, o sistema escolhe** uma agenda livre naquele horário,
+**entre quem faz o serviço** — é o caso comum, o cliente sem preferência. Com
+`profissional_id` de alguém que não faz, a recusa é `profissional_nao_faz`, com
+`quem_faz` (o mesmo formato da disponibilidade).
+
+O `whatsapp` é a identidade: o sistema procura por ele e, se não achar, **cria o
+contato** com o `nome` informado. É o mesmo comportamento que o Agente de IA já
+tem hoje. O número deve vir no formato canônico (só dígitos com código do país,
+`5511987654321`) — o mesmo que a automação já grava.
+
+A `chave_externa` é o que impede agendamento duplicado quando quem chama repete a
+chamada por timeout. Mandando o mesmo valor, a segunda tentativa devolve o
+agendamento que já existe em vez de criar outro.
+
+#### A porta de entrada, quando existe
+
+Quando a empresa tem uma porta de entrada (migração `0026`) — no kit de clínica,
+a Avaliação Odontológica —, os serviços que passam por ela não se marcam direto.
+**Tentar marcar um deles é recusado**, com o nome do serviço que precisa vir
+antes:
+
+```json
+{
+  "ok": false,
+  "motivo": "exige_avaliacao",
+  "marque_no_lugar": "Avaliação Odontológica",
+  "mensagem": "Esse serviço começa por Avaliação Odontológica. Posso marcar Avaliação Odontológica para você?"
+}
+```
+
+A saída é chamar o `/marcar` de novo, com `procedimento` valendo o nome devolvido
+em `marque_no_lugar`, e o serviço desejado em **`interesse`** — que é o que faz
+o profissional abrir a agenda e já saber do que se trata.
+
+> ⚠️ **`GET /procedimentos` ainda devolve só os nomes**, então não dá para saber
+> de antemão quais passam pela porta de entrada: quem consome descobre pela recusa.
+> Para um agente conversando, isso significa oferecer horário e voltar atrás na
+> frente do cliente. A Letícia não sofre disso porque lê o catálogo pela view
+> `procedimentos_clinica_agente`, que traz o fluxo escrito na linha.
+
+> ⚠️ **Serviço fora do catálogo é RECUSADO.** Isto mudou na migração
+> `0023`, e a regra anterior era a oposta — nome que não casava seguia adiante
+> com 60 minutos e **sem conferir a porta de entrada**, o que deixava marcar por
+> fora dela em silêncio. Hoje volta `procedimento_desconhecido`.
+>
+> A recusa exige **existir e estar ativo**. Maiúscula e espaço sobrando não
+> contam; o resto da grafia, sim: `Limpeza` não casa com `Limpeza e Profilaxia`.
+
+**Sucesso:**
+
+```json
+{
+  "ok": true,
+  "id": "7b4e…",
+  "data_hora": "2026-05-14T12:00:00+00:00",
+  "profissional": "Henrique Salles",
+  "mensagem": "Maria Pereira, seu agendamento foi marcado com sucesso com o profissional Henrique Salles para quinta, 14/05/2026 às 09:00."
+}
+```
+
+O `id` volta para o agente poder cancelar ou remarcar depois sem ter que
+procurar.
+
+**Recusas:** `procedimento_desconhecido`, `exige_avaliacao`,
+`profissional_nao_faz`, `profissional_inexistente`, `horario_ocupado`,
+`sem_profissional_livre`, `fora_expediente`, `whatsapp_invalido`,
+`dados_invalidos`, `data_invalida` —
+cada uma com a frase correspondente.
+
+> **As duas primeiras não tinham frase própria até 02/09/2026**, e caíam na
+> genérica: *"Não consegui acessar a agenda agora. Só um instante, por favor."*
+> Quem integrava reiniciava servidor procurando um defeito que era o nome de um
+> serviço. Se você viu esse sintoma, é isto — republique a função.
+
+```bash
+curl -X POST 'https://SEU_REF.supabase.co/functions/v1/agenda/marcar' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "nome": "Maria Pereira",
+    "whatsapp": "5511987654321",
+    "procedimento": "Limpeza e Profilaxia",
+    "data_hora": "2026-05-14T09:00",
+    "profissional_id": "3f2a…",
+    "chave_externa": "msg_abc123"
+  }'
+```
+
+---
+
+### 3.5. Consultar agendamentos do cliente — `POST /consultas`
+
+**Precisa:** `whatsapp`.
+
+**Devolve:** só os agendamentos **ativos e futuros**. Histórico o agente não precisa.
+
+```json
+{
+  "ok": true,
+  "consultas": [
+    {
+      "id": "7b4e…",
+      "data_hora": "2026-05-14T12:00:00+00:00",
+      "profissional": "Henrique Salles",
+      "procedimento": "Limpeza e Profilaxia"
+    }
+  ],
+  "mensagem": "Você tem um agendamento em quinta, 14/05/2026, às 09:00, com Henrique Salles."
+}
+```
+
+É daqui que o agente tira o `id` para cancelar ou remarcar.
+
+**Mais de um:** a lista vem inteira, em ordem de data, mas a frase fala só do
+próximo — *"Você tem 3 agendamentos. O próximo é em quinta, 14/05/2026,
+às 09:00, com Henrique Salles."* Ninguém recita agenda no WhatsApp; se o
+cliente quiser o resto, o agente tem a lista para ler.
+
+**Nenhum agendamento:** `consultas` vazio e a frase *"Você não tem nenhum
+agendamento no momento."* Continua sendo `ok: true` — a pergunta foi
+respondida.
+
+**Recusas:** `whatsapp_invalido`, `paciente_nao_encontrado`.
+
+```bash
+curl -X POST 'https://SEU_REF.supabase.co/functions/v1/agenda/consultas' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI' \
+  -H 'Content-Type: application/json' \
+  -d '{ "whatsapp": "5511987654321" }'
+```
+
+---
+
+### 3.6. Cancelar — `POST /cancelar`
+
+**Precisa:** `consulta_id`.
+**Opcionais:** `whatsapp`, `motivo`.
+
+O `whatsapp` é **conferência**: se vier, o sistema valida que aquele agendamento é
+mesmo daquele número e recusa com `nao_pertence` se não for. Barato, e evita que
+um ID trocado no fluxo cancele o agendamento de outra pessoa.
+
+**Sucesso:**
+
+```json
+{
+  "ok": true,
+  "data_hora": "2026-05-14T12:00:00+00:00",
+  "mensagem": "Seu agendamento de quinta, 14/05/2026 às 09:00 com Henrique Salles foi cancelado."
+}
+```
+
+Cancelar libera o horário na agenda imediatamente e move o lead no funil — o
+banco cuida disso sozinho, por trigger. Se o cliente tiver outras sessões
+marcadas, o funil dele **não** muda: cancelar uma sessão não é desistir do
+serviço.
+
+**Recusas:** `nao_encontrada`, `nao_pertence`, `ja_cancelada`, `nao_cancelavel`
+(agendamento já realizado), `dados_invalidos` (sem `consulta_id`).
+
+```bash
+curl -X POST 'https://SEU_REF.supabase.co/functions/v1/agenda/cancelar' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "consulta_id": "7b4e…",
+    "whatsapp": "5511987654321",
+    "motivo": "Cliente pediu pelo WhatsApp"
+  }'
+```
+
+---
+
+### 3.7. Remarcar — `POST /remarcar`
+
+**Precisa:** `consulta_id`, `nova_data_hora`.
+**Opcionais:** `profissional_id`, `whatsapp` (mesma conferência do cancelar).
+
+**Operação atômica** — nunca "cancela e cria". Se o segundo passo falhasse, o
+cliente ficaria sem agendamento nenhum e ninguém perceberia.
+
+**Sucesso:**
+
+```json
+{
+  "ok": true,
+  "data_hora": "2026-05-15T17:00:00+00:00",
+  "profissional": "Henrique Salles",
+  "mensagem": "Seu agendamento foi remarcado para sexta, 15/05/2026, às 14:00, com Henrique Salles."
+}
+```
+
+Remarcar **não** recarimba a data de marcação no CRM — senão o Dashboard
+contaria o mesmo agendamento duas vezes, uma no mês original e outra no mês para
+o qual foi adiado.
+
+**Recusas:** `nao_encontrada`, `nao_pertence`, `horario_ocupado`,
+`sem_profissional_livre`, `fora_expediente`, `profissional_nao_faz` (trocar
+para quem não faz o serviço do agendamento — aqui sem `quem_faz`),
+`dados_invalidos`, `data_invalida`.
+
+```bash
+curl -X POST 'https://SEU_REF.supabase.co/functions/v1/agenda/remarcar' \
+  -H 'X-Api-Key: SEU_TOKEN_AQUI' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "consulta_id": "7b4e…",
+    "nova_data_hora": "2026-05-15T14:00",
+    "whatsapp": "5511987654321"
+  }'
+```
+
+---
+
+## 4. Tokens de acesso
+
+### Tabela `api_tokens`
+
+| Coluna | Tipo | Observação |
+|---|---|---|
+| `id` | `uuid` | PK |
+| `nome` | `text` | Como a equipe identifica ("integração da recepção") |
+| `prefixo` | `text` | Primeiros caracteres visíveis (`odk_7f3a…`), para saber qual é qual |
+| `hash` | `text` | **SHA-256 do token.** O valor original não existe em lugar nenhum |
+| `ativo` | `boolean` | Revogar é `false`, não `DELETE` |
+| `criado_por` | `uuid` | FK → `usuarios` |
+| `ultimo_acesso` | `timestamptz` | Preenchido pela API a cada chamada válida |
+| `created_at` | `timestamptz` | |
+| `revogado_em` | `timestamptz` | |
+
+**Por que hash e não o valor:** guardar o token legível significa que um
+vazamento do banco entrega todos os tokens de uma vez, e o "só aparece uma vez"
+vira encenação — o valor continua lá, visível para quem tiver acesso.
+
+**Revogar não apaga.** A linha fica com `ativo = false`, para o histórico de quem
+teve acesso e quando não desaparecer.
+
+**`ultimo_acesso`** é atualizado no máximo uma vez a cada **5 minutos** por
+token, não a cada chamada — senão cada consulta de disponibilidade viraria
+também uma escrita.
+
+### Tela: menu do usuário → Token e API
+
+Implementada em [`TokenApi.tsx`](src/pages/TokenApi.tsx), com a
+geração e o catálogo de endpoints em
+[`src/lib/apiTokens.ts`](src/lib/apiTokens.ts).
+
+- Lista com nome, prefixo, status, último acesso, data e quem criou
+- Criar: pede só o nome. O valor é sorteado no navegador — `odk_` + 40
+  caracteres de um alfabeto de 62, cerca de 238 bits — e o que vai para o banco
+  é o SHA-256
+- **No momento da criação**, e só nele, a tela mostra o token completo com botão
+  de copiar e o aviso de que ele não volta a aparecer
+- Revogar, com confirmação que avisa o efeito: a próxima chamada já responde 401
+- A documentação dos sete endpoints fica na mesma aba, com o cURL de cada um e
+  um seletor de token. Escolhido um token **criado nesta sessão**, os cURLs saem
+  com o valor real; para qualquer outro, saem com `SEU_TOKEN_AQUI` e o aviso de
+  que o caminho para quem perdeu o valor é revogar e criar outro
+
+> **O valor em claro só existe enquanto a página está aberta.** Ele fica na
+> memória do componente para os cURLs poderem sair preenchidos logo depois da
+> criação, e some ao sair da tela. Não é gravado em lugar nenhum — nem no banco,
+> nem no navegador.
+
+> **O `hashToken()` da tela e o `sha256()` da Edge Function precisam ser o mesmo
+> cálculo** — SHA-256 em hexadecimal minúsculo. É o único ponto de encontro
+> entre quem cria o token e quem o confere. Se divergirem, todo token nasce
+> inválido e o sintoma é um 401 sem explicação nenhuma.
+
+---
+
+## 5. O que esta API não faz
+
+Decisões conscientes, para não crescer sem motivo:
+
+- **Não marca como realizado.** Comparecimento é ato da equipe, pela tela: o
+  "Compareceu / Faltou" da Agenda, ou a ficha da pessoa, que guarda também o
+  valor pago.
+- **Não cadastra nem edita profissionais, serviços ou horários.** Isso é da
+  empresa, pelas telas.
+- **Não lê dados financeiros** — nem valor pago, nem faturamento. E também não
+  devolve preço: o "a partir de" que a Letícia fala vem do catálogo, pela view
+  `procedimentos_clinica_agente`, e o `GET /procedimentos` traz só os nomes.
+- **Não tem escopos por token.** Todos os tokens podem tudo que está aqui. Se um
+  dia houver mais de um consumidor com necessidades diferentes, aí sim.

@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* A cor da marca NÃO mora aqui: a empresa escolhe no seletor (Configurações →
+   Empresa), e src/lib/marca.ts aplica como --cor-marca, --cor-marca-escuro,
+   --cor-marca-claro e --cor-marca-suave. Os tons "accent" que existiam neste
+   bloco eram do Tailwind, que o projeto não usa, e ficariam azuis para sempre. */
+@theme {
+  --color-success: #1A7A48;
+  --color-success-light: #E8F8EF;
+  --color-page-bg: #F2F6F7;
+  --color-card: #FFFFFF;
+  --color-text-primary: #16232B;
+  --color-text-secondary: #6B818C;
+  --color-border: #DCE6EA;
+
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #F2F6F7;
+  color: #16232B;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.fade-in-1 { animation: fadeInUp 0.4s ease 0.05s forwards; opacity: 0; }
+.fade-in-2 { animation: fadeInUp 0.4s ease 0.10s forwards; opacity: 0; }
+.fade-in-3 { animation: fadeInUp 0.4s ease 0.15s forwards; opacity: 0; }
+.fade-in-4 { animation: fadeInUp 0.4s ease 0.20s forwards; opacity: 0; }
+.fade-in-5 { animation: fadeInUp 0.4s ease 0.25s forwards; opacity: 0; }
+.fade-in-6 { animation: fadeInUp 0.4s ease 0.30s forwards; opacity: 0; }
