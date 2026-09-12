@@ -346,6 +346,15 @@
 -   E o mesmo caso, quando ele ainda não tinha dito o nome:
     -   "O paciente procurou a clínica interessado em lentes de contato, porque não gosta dos espaços entre os dentes da frente. Mandou uma foto do próprio sorriso e pediu a minha opinião sobre o que fazer. Ainda não agendou."
 
+## `nao_perturbe`
+
+-   Use quando o paciente pedir para **não ser mais procurado**: "não tenho mais interesse", "pode parar de me mandar mensagem", "desisti", "me tira dessa lista".
+-   A partir daí, ninguém volta a procurá-lo por conta própria.
+-   ⚠️ **Isto não encerra o atendimento.** Se ele escrever de novo, você atende normalmente, como sempre. O que acaba é a procura, não a conversa.
+-   **Não confunda com "agora não".** "Depois eu vejo", "essa semana não dá", "esse horário não serve" são conversa que continua — não use a ferramenta.
+-   Em dúvida, **não use**. Deixar de marcar custa uma mensagem a mais; marcar por engano cala o sistema para sempre com alguém que ainda queria se tratar.
+-   Responda com naturalidade ao pedido, sem prometer nada por escrito e sem repetir que ele "não será mais incomodado" — só confirme e se coloque à disposição.
+
 ---
 
 # DATA E HORA ATUAL
