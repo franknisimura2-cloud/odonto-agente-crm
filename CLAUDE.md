@@ -27,7 +27,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 29), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 30), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 
@@ -124,6 +124,16 @@ npm run instalar:usuario -- email --nome "Nome"  # liga a regra de senha e cria 
 > memória e não grava em lugar nenhum; ele depende do token de
 > `.supabase-token.local`, então só funciona até a parte 6 da instalação.
 
+E os três do follow-up, em [`scripts/followup.mjs`](scripts/followup.mjs) — a
+fiação que a migração `0030` não pode fazer, porque depende do endereço e do
+segredo desta instalação:
+
+```bash
+npm run followup:ligar      # guarda endereço e segredo no Vault e agenda o cron
+npm run followup:desligar   # tira o cron da agenda; a fila e o histórico ficam
+npm run followup:estado     # o job, as batidas da última hora e a fila de agora
+```
+
 E os do Agente de IA (ver [`agente-ia/README.md`](agente-ia/README.md)):
 
 ```bash
@@ -156,10 +166,15 @@ inclui só `src`). Dá para conferir sem publicar, com o Deno:
 npx --yes deno@2 check supabase/functions/whatsapp/index.ts
 ```
 
-⚠️ **Ele acusa 6 erros que já existiam** — 4 em `llm.ts`, 1 em `db.ts` e o
-`EdgeRuntime` do `whatsapp/index.ts`, que só existe no runtime do Supabase.
+⚠️ **Ele acusa 5 erros que já existiam** — 4 em `llm.ts` e 1 em `db.ts`.
 **Compare com o número, não com "limpo"**: rode antes de mexer, guarde a
 contagem, e confira depois. Sem isso, o erro só aparece na hora de publicar.
+
+> Eram **6** até a migração `0030`. O sexto era o `EdgeRuntime` do
+> `whatsapp/index.ts`, que só existe no runtime do Supabase e era alcançado por
+> um par de casts encadeados; ao extrair aquilo para a função `emSegundoPlano()`
+> — que o follow-up também usa —, o cast virou um `optional chaining` tipado e o
+> erro saiu junto. Ninguém foi caçá-lo: ele era sintoma da duplicação.
 
 ---
 
@@ -189,7 +204,7 @@ As migrações executáveis ficam em [`supabase/migrations/`](supabase/migration
 e a API do Agente de IA em
 [`supabase/functions/agenda/`](supabase/functions/agenda/).
 
-A migração é aplicada em **vinte e nove arquivos, nesta ordem**:
+A migração é aplicada em **trinta arquivos, nesta ordem**:
 `0001_schema_inicial.sql`, `0002_agenda_profissionais.sql` (agenda e
 profissionais), `0003_whatsapp_unico.sql` (WhatsApp normalizado e único),
 `0004_api_agente.sql` (tokens e funções da API),
@@ -229,7 +244,11 @@ chave pública, que vai no navegador, deixa de ler os contatos e de marcar ou
 cancelar agendamento sem login — ver o ponto 1 e o 3 logo abaixo) e
 `0029_cor_do_sistema.sql` (a cor do sistema vira escolha da empresa: a coluna
 `cor_sistema`, com a chave de uma das sete cores de
-[`marca.ts`](src/lib/marca.ts) — ver "Paleta" no Design system).
+[`marca.ts`](src/lib/marca.ts) — ver "Paleta" no Design system) e
+`0030_follow_up.sql` (o follow-up automático: `pg_cron` e `pg_net`, os prazos em
+`configuracoes_agente`, a tabela `agente_followups`, a `followups_pendentes()`
+com a política inteira e a `disparar_followups()` que o cron chama — ver a
+seção 4.20 do `DATABASE.md`, e `npm run followup:ligar` para agendar).
 
 > **O conteúdo de nicho não mora nas migrações.** Da `0001` à `0024` elas
 > cadastram o catálogo e o nome da clínica odontológica onde o sistema nasceu;
@@ -2046,6 +2065,43 @@ cada conversa e a cada minuto (`{{DATA_HOJE}}` e `{{FICHA_DO_CONTATO}}`) vem
 É assim que o cache de prompt funciona: ele reaproveita o **prefixo comum** entre
 chamadas. Um dado volátil no começo joga fora o desconto do texto inteiro — de
 todas as conversas de uma vez. **Não mova as duas seções finais para cima.**
+
+### O follow-up é a única vez em que ela fala sem ser chamada
+
+Todo o resto desta função é reativo: a Edge Function acorda com um webhook, ou
+seja, **só quando alguém escreve**. A rota `POST /whatsapp/follow-up` é a
+exceção — quem a acorda é o `pg_cron`, de minuto em minuto (migração `0030`).
+
+**A política não mora no código.** Quem recebe, de qual etapa e sob quais
+travas é a `followups_pendentes()`, no banco; a rota executa a lista que vier.
+É o que permite mudar prazo, janela ou trava sem republicar função nenhuma — e
+é onde procurar quando alguém receber, ou deixar de receber, um follow-up.
+A referência completa é a [seção 4.20 do `DATABASE.md`](DATABASE.md).
+
+Três coisas do lado do código que não são óbvias:
+
+- **A reserva em `agente_followups` é gravada antes de responder 200 ao cron.**
+  Gerar o texto leva segundos e o cron bate a cada minuto: sem isso, a batida
+  seguinte pegaria a mesma pessoa. Falhou o envio? A reserva é apagada, e ela
+  volta para a fila.
+- **A chamada ao modelo vai sem ferramenta nenhuma.** Um follow-up não marca,
+  não cancela e não grava ficha — ele só chama de volta. Com as ferramentas na
+  mesa, o modelo tenta "adiantar" o agendamento de quem nunca confirmou nada.
+- **A instrução de follow-up é concatenada ao prompt, e não mora no
+  `prompt.md`.** Aquele arquivo tem contrato conferido (`npm run prompt` valida
+  seções e marcadores), e este texto só vale numa das duas situações em que ela
+  fala. Prompt que descreve uma situação que não está acontecendo é ruído
+  cobrado em toda mensagem.
+- **A nona ferramenta existe por causa do follow-up.** `nao_perturbe` é a única
+  trava que lê o que a pessoa **disse**; todas as outras são estruturais. Ela
+  liga e nunca desliga, e **não cala a agente**: o que acaba é a procura, não o
+  atendimento. Quem cala é o `agente_pausado`, que é outra coisa.
+- **Quem cancelou tem tratamento próprio, nos dois lados.** No banco, pula a
+  etapa 1 e cai na de 24 horas, que chega no dia seguinte; no código, a
+  `oQueAconteceuComOAgendamento()` conta ao modelo o que a pessoa tinha marcado
+  e manda convidar para um horário novo. **Cancelar não é desinteresse** — é o
+  lead mais perto de voltar, e o follow-up genérico ("posso ajudar em algo?")
+  joga isso fora.
 
 ### Ao agendar, o agente chama função SQL — nunca `INSERT`
 

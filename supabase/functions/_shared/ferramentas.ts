@@ -275,6 +275,28 @@ export const FERRAMENTAS: DefinicaoFerramenta[] = [
       additionalProperties: false,
     },
   },
+  {
+    nome: 'nao_perturbe',
+    descricao:
+      'Marque quando a pessoa pedir para NÃO ser mais procurada: "não tenho ' +
+      'mais interesse", "pode parar de me mandar mensagem", "desisti", "me ' +
+      'tira daí". A partir daí ninguém volta a procurá-la sozinho. Isto NÃO ' +
+      'encerra o atendimento: se ela escrever de novo, você responde ' +
+      'normalmente. Não use para "agora não posso", "depois eu vejo" ou para ' +
+      'recusa de um horário — isso é conversa que continua.',
+    parametros: {
+      type: 'object',
+      properties: {
+        motivo: {
+          type: 'string',
+          description:
+            'O que ela disse, em poucas palavras, para a equipe entender ' +
+            'depois. Ex.: "pediu para não receber mais mensagens".',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -760,6 +782,22 @@ export async function executar(
         // `crm_clinica` é view auto-atualizável. Nunca escrever em
         // `minutos_ultima_mensagem`, que é calculada na leitura.
         await atualizar('crm_clinica', `id=eq.${ctx.leadId}`, campos)
+        return { ok: true }
+      }
+
+      case 'nao_perturbe': {
+        // Escreve na TABELA, não na view: `nao_perturbe` é dado do lead, e a
+        // view só o carrega para a tela poder mostrar.
+        //
+        // Só liga, nunca desliga. Voltar atrás é decisão de gente — e é da
+        // equipe, na ficha. Uma pessoa que pediu para não ser procurada não
+        // pode ser destravada por uma frase ambígua numa conversa seguinte.
+        await atualizar('crm_clinica_dados', `id=eq.${ctx.leadId}`, {
+          nao_perturbe: true,
+          nao_perturbe_em: new Date().toISOString(),
+          nao_perturbe_motivo: String(args.motivo ?? '').trim().slice(0, 200) || null,
+        })
+        console.log(`nao_perturbe ligado para ${ctx.leadId}`)
         return { ok: true }
       }
 

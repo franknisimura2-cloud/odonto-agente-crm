@@ -34,8 +34,20 @@ import { conferirContrato, relatar } from './conferir-contrato.mjs'
 const aqui = dirname(fileURLToPath(import.meta.url))
 const destino = join(aqui, '..', 'supabase', 'functions', '_shared', 'prompt-oficial.ts')
 
-const prompt = readFileSync(join(aqui, 'prompt.md'), 'utf8')
-const descritor = readFileSync(join(aqui, 'descritor-de-fotos.md'), 'utf8').trim()
+/**
+ * Lê um `.md` com quebra de linha SEMPRE em `\n`.
+ *
+ * ⚠️ O `.replace` não é firula de estilo. No Windows o Git entrega os arquivos
+ * com CRLF (`core.autocrlf`), e sem esta linha o `\r` entrava no texto embutido
+ * — o prompt publicado ficava com `\r\n` em cada quebra. Três estragos de uma
+ * vez: ~375 caracteres a mais em TODA chamada ao modelo, um `prompt-oficial.ts`
+ * que aparecia modificado no `git status` sem ninguém ter editado nada, e uma
+ * atendente publicada diferente conforme o sistema de quem publicou.
+ */
+const lerMd = (nome) => readFileSync(join(aqui, nome), 'utf8').replace(/\r\n/g, '\n')
+
+const prompt = lerMd('prompt.md')
+const descritor = lerMd('descritor-de-fotos.md').trim()
 
 if (!relatar(conferirContrato(prompt, descritor))) {
   console.log('\nNada foi gerado. Corrija o prompt e rode de novo.')

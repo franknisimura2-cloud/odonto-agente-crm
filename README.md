@@ -232,6 +232,10 @@ npm run agente:deploy   # regera o prompt e publica a função whatsapp
 
 npm run instalar:conferir   # confere os 3 arquivos de chave, sem mostrar valor
 npm run instalar:usuario -- email@empresa.com.br   # cria um usuário já confirmado
+
+npm run followup:ligar      # agenda o follow-up automático (cron de minuto em minuto)
+npm run followup:desligar   # tira o cron da agenda
+npm run followup:estado     # o job, as últimas batidas e a fila de agora
 ```
 
 Os de publicar e o `instalar:usuario` leem o seu projeto e o seu token de
@@ -359,9 +363,9 @@ A coluna `status` aceita exatamente estes nove valores:
 | `conversando` | Em conversa com o agente | Leads |
 | `consulta_agendada` | Agendamento marcado | Leads |
 | `consulta_cancelada` | Agendamento cancelado | Leads |
-| `follow_up_1_feito` | Primeira retomada enviada | Leads |
-| `follow_up_2_feito` | Segunda retomada | Leads |
-| `follow_up_3_feito` | Terceira retomada | Leads |
+| `follow_up_1_feito` | Primeira retomada enviada, aos 10 minutos de silêncio | Leads |
+| `follow_up_2_feito` | Segunda retomada, às 24 horas | Leads |
+| `follow_up_3_feito` | Terceira retomada. **Nada escreve este status** — a coluna só recebe quem a equipe arrastar | Leads |
 | `consulta_realizada` | Compareceu | **Clientes** |
 | `paciente_recorrente` | Voltou mais de uma vez | **Clientes** |
 
@@ -401,7 +405,7 @@ continua no histórico do Git. É preciso revogar a credencial e gerar outra.
 
 ### Controle de acesso
 
-O RLS está ativo nas 13 tabelas, com 14 políticas (mais 10 no Storage — a
+O RLS está ativo nas 14 tabelas, com 15 políticas (mais 10 no Storage — a
 conta atualizada vive na [seção 10 do `DATABASE.md`](DATABASE.md), que é onde
 está a consulta que a confere). O modelo atual é:
 
@@ -432,6 +436,14 @@ por vez; a coluna `provedor_whatsapp` decide, e trocar vale na mensagem seguinte
 Quem pensa é o modelo escolhido na mesma tela: seis da **OpenAI** ou dois da
 **Anthropic**. A chave da OpenAI é necessária de qualquer jeito — é ela que
 transcreve os áudios e descreve as fotos, mesmo com um Claude atendendo.
+
+Ela também **volta a falar sozinha** quando a conversa esfria: 10 minutos e 24
+horas depois da última mensagem da pessoa. Não recebe follow-up quem **já é
+cliente**, quem **pediu para não ser procurado**, quem tem **hora marcada**,
+quem falou por último, nem conversa assumida pela equipe — e o modo teste vale
+igual. Quem cancelou pula o toque curto e recebe, no dia seguinte, um convite
+para remarcar. Nasce **desligado**: quem liga é `npm run followup:ligar`. A
+seção 8.6 do [`agente-ia/README.md`](agente-ia/README.md) conta o resto.
 
 **📘 Tudo sobre ela está em [`agente-ia/`](agente-ia/)** — comece pelo
 [`agente-ia/README.md`](agente-ia/README.md).
@@ -738,7 +750,7 @@ resposta ao cliente, não como erro.
 | [`DATABASE.md`](DATABASE.md) | Referência completa do banco: todas as colunas, RLS, Storage, Realtime, armadilhas e consultas de verificação |
 | [`API_AGENTE.md`](API_AGENTE.md) | Contrato da API da agenda para integração externa: os sete endpoints, com cURL pronto, e o desenho dos tokens de acesso |
 | [`CLAUDE.md`](CLAUDE.md) | Convenções de código, design system, rotas e débito técnico conhecido |
-| [`agente-ia/README.md`](agente-ia/README.md) | **A Atendente de IA por inteiro**: como funciona, as oito ferramentas, a memória, os custos e o que cada teste real quebrou |
+| [`agente-ia/README.md`](agente-ia/README.md) | **A Atendente de IA por inteiro**: como funciona, as nove ferramentas, a memória, os custos e o que cada teste real quebrou |
 | [`agente-ia/GUIA-DO-PROMPT.md`](agente-ia/GUIA-DO-PROMPT.md) | **Levando o sistema para outra empresa**: o que no prompt é conteúdo seu e o que é contrato com o código |
 | [`supabase/migrations/`](supabase/migrations/) | O SQL que recria o banco do zero |
 

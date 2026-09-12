@@ -254,7 +254,7 @@ descritor, em qualquer ramo.
 node agente-ia/conferir-contrato.mjs kits/<ramo>
 ```
 
-Ele confere o que quebra em silêncio: as oito ferramentas, os seis marcadores,
+Ele confere o que quebra em silêncio: as nove ferramentas, os seis marcadores,
 as nove seções e as frases que o código escreve e o prompt reconhece — o
 marcador do descritor incluído. Tem que terminar em **"tudo certo"**.
 

@@ -340,7 +340,7 @@ No fim, me diga o que deu certo e o que ainda falta eu fazer.
 
 | Passo | O que é | Como saber que deu certo |
 |---|---|---|
-| **As 29 migrações** | Criam tabelas, índices, regras de segurança e as funções da agenda. O catálogo de serviços nasce **vazio** | 13 tabelas + 5 views, 24 índices, 24 políticas, 28 funções, 10 triggers — e as duas consultas de segurança da seção 10 voltam **vazias** (se voltar alguma linha, a chave pública do navegador alcança dado da empresa) |
+| **As 30 migrações** | Criam tabelas, índices, regras de segurança e as funções da agenda. O catálogo de serviços nasce **vazio** | 14 tabelas + 5 views, 25 índices, 25 políticas, 30 funções, 10 triggers — e as duas consultas de segurança da seção 10 voltam **vazias** (se voltar alguma linha, a chave pública do navegador alcança dado da empresa) |
 | **Os secrets** | Sobem as chaves do arquivo para o servidor | `npm run agente:secrets` termina sem erro |
 | **As duas funções** | `whatsapp` (a Letícia) e `agenda` (a API) | Publicadas no painel do Supabase |
 | **O seu acesso** | Liga a regra de senha forte e cria o seu usuário, já confirmado, com uma **senha provisória** | Ela te mostra o e-mail e a senha provisória |
@@ -348,6 +348,13 @@ No fim, me diga o que deu certo e o que ainda falta eu fazer.
 
 > **A senha provisória fica escrita na conversa com a IA** — por isso ela é
 > provisória. Você troca no primeiro acesso (4.1), e a nova fica só com você.
+
+> **O follow-up automático não entra aqui, e é de propósito.** As migrações
+> criam a máquina dele, e ela fica **parada** até alguém rodar
+> `npm run followup:ligar`. É o único pedaço do sistema que faz a atendente
+> escrever para alguém sem ter sido chamada, e ligar isso é decisão da empresa,
+> não passo de instalação — como desligar o modo teste. Quando quiser, o
+> caminho está na seção 8.6 do [`agente-ia/README.md`](agente-ia/README.md).
 
 > **Por que a regra de senha:** um projeto novo do Supabase aceita senha de
 > **seis** caracteres, sem exigência nenhuma, por mais que a tela de

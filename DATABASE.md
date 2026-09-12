@@ -26,8 +26,8 @@ Documentação completa do schema. Serve para quem baixar este sistema e precisa
 
 ### 1.1. Rodar as migrações
 
-Abra o **SQL Editor** no painel do Supabase e execute os **vinte e nove
-arquivos, nesta ordem** — cada um depende do anterior:
+Abra o **SQL Editor** no painel do Supabase e execute os **trinta arquivos,
+nesta ordem** — cada um depende do anterior:
 
 1. `supabase/migrations/0001_schema_inicial.sql` — 6 tabelas, 1 view, 9 índices,
    13 políticas de RLS, 2 buckets de Storage, 2 funções, 2 triggers, a
@@ -195,6 +195,18 @@ arquivos, nesta ordem** — cada um depende do anterior:
     cor de antes). Sem `CHECK`, de propósito. Uma coluna; nenhum objeto novo.
     Ver [4.4](#44-configuracoes_clinica).
 
+30. `supabase/migrations/0030_follow_up.sql` — **a agente volta a falar quando
+    a conversa esfria**: as extensões `pg_cron` e `pg_net`, cinco colunas de
+    prazo e janela em `configuracoes_agente`, a tabela `agente_followups`
+    (ver [4.20](#420-agente_followups-migração-0030)), a
+    `followups_pendentes()`, que guarda a política inteira, e a
+    `disparar_followups()`, que o cron chama de minuto em minuto.
+
+    > **Ela não agenda o cron.** O `cron.schedule` precisa do endereço da SUA
+    > função e do seu `WEBHOOK_SEGREDO`, e nada de instalação nenhuma entra em
+    > arquivo versionado. Quem agenda é `npm run followup:ligar`, que guarda os
+    > dois no Vault. Até lá, tudo aqui existe e fica parado.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 Confira o resultado com as consultas da [seção 10](#10-consultas-úteis-para-verificação).
@@ -308,7 +320,8 @@ erDiagram
 | `usuarios` | tabela | Perfil da equipe, espelha `auth.users` |
 | `configuracoes_clinica` | tabela | Identidade, endereço e fuso da empresa (linha única) |
 | `mensagens_whatsapp` | tabela | Cada mensagem trocada no WhatsApp. É a memória do Agente de IA **e** a fonte da tela de conversas (ver 4.17) |
-| `configuracoes_agente` | tabela | Linha única: modelo, prompt, liga/desliga e modo teste do agente (ver 4.17) |
+| `configuracoes_agente` | tabela | Linha única: modelo, prompt, liga/desliga, modo teste e os prazos do follow-up (ver 4.17) |
+| `agente_followups` | tabela | Um follow-up enviado, por linha. É o que impede o mesmo toque duas vezes (ver 4.20) |
 | `informacoes_clinica_agente` | **view** | Os dados da empresa em frases prontas, uma por linha, para o Agente de IA (ver 4.12) |
 | `procedimentos_clinica_agente` | **view** | Os serviços ativos, um por linha, para o Agente de IA (ver 4.13) |
 | `profissionais_clinica_agente` | **view** | Os profissionais ativos, a jornada e — de quem tem lista — os serviços que fazem, um por linha, para o Agente de IA (ver 4.14) |
@@ -1629,6 +1642,132 @@ No banco da clínica onde o sistema nasceu:
 
 ---
 
+### 4.20. `agente_followups` (migração `0030`)
+
+A agente volta a falar quando a conversa esfria. Até a `0030` ela era **100%
+reativa**: a Edge Function só acorda com um webhook, ou seja, só quando alguém
+escreve. Follow-up é o contrário — falar quando ninguém escreveu —, e por isso
+exige um relógio dentro do banco.
+
+| Peça | O que é |
+|---|---|
+| `agente_followups` | Uma linha por follow-up enviado: `lead_id`, `etapa` (1 ou 2), `enviado_em` e o `texto` que o modelo escreveu |
+| 5 colunas em `configuracoes_agente` | `followup_ativo`, `followup_1_minutos` (10), `followup_2_horas` (24), `followup_inicio` (09:00) e `followup_fim` (20:30) |
+| `followups_pendentes()` | **Toda a política.** Quem está devendo follow-up, e de qual etapa |
+| `disparar_followups()` | O que o `pg_cron` chama de minuto em minuto: havendo fila, acorda a Edge Function |
+
+#### O relógio é a última mensagem do LEAD
+
+É a decisão central do arquivo. Se o prazo contasse da última mensagem **de
+qualquer um**, o follow-up da etapa 1 reiniciaria o próprio relógio: as 24
+horas da etapa 2 passariam a contar da fala dela, e cada toque empurraria o
+seguinte para sempre.
+
+Contando do último `autor = 'paciente'`, as duas etapas medem a mesma coisa — há
+quanto tempo a **pessoa** está calada — e o ciclo **se rearma sozinho**: quando
+ela responde, os follow-ups já enviados ficam para trás daquela data e voltam a
+valer na próxima vez que a conversa esfriar. É isto que a consulta pergunta:
+
+```sql
+not exists (select 1 from agente_followups f
+            where f.lead_id = ... and f.etapa = 1
+              and f.enviado_em > c.ultima_do_lead)
+```
+
+#### As travas, que são o que separa follow-up de spam
+
+| Trava | Por quê |
+|---|---|
+| **Pediu para não ser procurado** | `nao_perturbe`, ligado pela ferramenta de mesmo nome. É a única trava sobre o que a pessoa **disse** — ver abaixo |
+| **Já é cliente** | `consulta_realizada` e `paciente_recorrente` ficam de fora. O follow-up existe para trazer quem ainda não veio; cliente que some não está sumindo de uma negociação, está sem assunto |
+| A última palavra tem que ser da agente | Se o lead falou por último, ela está **devendo resposta**. Follow-up ali esconde um defeito atrás de uma simpatia |
+| Quem tem hora marcada não recebe | Isso seria lembrete de consulta: outro texto, outro momento, outra funcionalidade |
+| Conversa pausada ou assumida fica de fora | `agente_pausado` e `assumido_por` (migração `0010`). O robô não entra por cima de quem está atendendo à mão |
+| `agente_deve_responder()` vale igual | A mesma trava do webhook, o que faz o **modo teste** valer aqui. Sem ela, o primeiro teste dispararia para todo mundo que já escreveu |
+| A etapa 1 tem teto de tempo | Ela só vale **entre** os dois prazos. Sem o teto, quem está calado há três dias receberia a etapa 1 e a 2 no mesmo minuto |
+| Só a etapa 2 respeita a janela | Decisão de produto: 10 minutos é dentro de uma conversa viva, e quem escreveu 22h30 está acordado às 22h40. Um dia depois, não |
+| **Quem cancelou pula a etapa 1** | Ver abaixo |
+
+#### "Não me procure mais" — a única trava sobre o que a pessoa disse
+
+Três colunas em `crm_clinica_dados` (`nao_perturbe`, `nao_perturbe_em`,
+`nao_perturbe_motivo`), ligadas pela ferramenta `nao_perturbe` da agente. Todas
+as outras travas são estruturais — tem hora marcada, está pausada, já recebeu —
+e nenhuma delas lê a conversa. Sem esta, quem escreve *"não tenho mais
+interesse"* recebe um follow-up dez minutos depois, e insistir depois de um não
+explícito é o caminho mais curto para o número ser denunciado.
+
+**Quem marca é a agente**, porque é ela que está lendo: é a única capaz de
+separar *"não quero mais nada"* de *"não quero esse horário"*. O prompt manda
+não usar em dúvida — deixar de marcar custa uma mensagem a mais; marcar por
+engano cala o sistema para sempre com alguém que ainda queria ser atendido.
+
+⚠️ **Isto não cala a agente.** Se a pessoa escrever de novo, ela responde
+normalmente. O que acaba é a **procura**, não o atendimento — quem cala é
+`agente_pausado`, que é outra coisa e tem outro botão. E a ferramenta só liga,
+nunca desliga: voltar atrás é decisão de gente, na ficha.
+
+As três colunas estão na view `crm_clinica`, para a equipe poder ver por que
+aquele lead parou de receber follow-up. Um lead que some da fila sem explicação
+é o defeito que este projeto mais persegue.
+
+#### Quem cancelou é o lead mais perto de voltar
+
+Cancelar **não** é dizer "não quero mais": a pessoa quis, escolheu dia e hora e
+desmarcou, quase sempre porque o horário deixou de servir. Tratá-la como quem
+perdeu o interesse joga fora o lead mais fácil de recuperar que existe.
+
+Duas consequências no código:
+
+- **Ela pula o toque de 10 minutos** (`ultimo_status <> 'cancelada'` na etapa 1).
+  Dez minutos depois de desmarcar, um "quer remarcar?" soa como quem não aceitou
+  o não. Ela cai na etapa 2, que com a janela de horário chega **no dia
+  seguinte** — que é quando o convite funciona.
+- **A instrução do follow-up conta o que aconteceu**, com o serviço e o dia que
+  ela tinha marcado, e manda convidar para um horário novo **sem perguntar por
+  que cancelou**. Isso mora na `oQueAconteceuComOAgendamento()`, na Edge
+  Function, e não na ficha: as frases da ficha são contrato com o `prompt.md` e
+  seriam cobradas em toda mensagem de toda conversa.
+
+O mesmo vale para quem **faltou** (`status = 'faltou'`), com outro texto: nada
+de cobrar a falta.
+
+#### A reserva é gravada ANTES do envio
+
+O cron bate a cada minuto; gerar o texto e enviar leva segundos. Sem reserva,
+a batida seguinte leria a mesma fila e a pessoa receberia o mesmo toque duas
+vezes. A Edge Function grava a linha **antes de responder 200** ao cron, e a
+apaga se o envio falhar — quem falha volta para a fila, quem foi atendido sai
+dela.
+
+#### O Kanban ganhou moradores
+
+As colunas **Follow-up 1** e **Follow-up 2** existem desde a `0001` e nunca
+receberam ninguém: não havia o que movesse um lead para lá. Agora o envio move —
+de `iniciou_conversa`, `conversando` e `consulta_cancelada` (e, na etapa 2,
+também de `follow_up_1_feito`).
+
+**`consulta_cancelada` entra na lista**, e isso é intencional: quem cancelou
+continua sendo lead, o cancelamento é um passo dentro do funil e não uma saída
+dele, e ver o card em "Follow-up" é como a equipe descobre que aquele
+cancelamento **já foi perseguido**. O cancelamento não some — fica no
+agendamento, na conversa e em `agente_followups`.
+
+Quem está em `consulta_realizada` ou `paciente_recorrente` **não é tocado**:
+esses dois status são o que separa a tela Clientes da tela Leads, e mudá-los
+arrancaria um cliente de onde a equipe o procura.
+
+#### O cron não é agendado por migração
+
+`cron.schedule` precisa do endereço da função — que carrega o ref do projeto — e
+do `WEBHOOK_SEGREDO`. Nada de instalação nenhuma entra em arquivo versionado
+(a mesma regra que tirou o `--project-ref` do `package.json`). Quem agenda é
+`npm run followup:ligar`, que guarda os dois no **Vault** do próprio banco;
+`followup:desligar` tira da agenda e `followup:estado` mostra job, batidas e
+fila.
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -1640,9 +1779,9 @@ No banco da clínica onde o sistema nasceu:
 | `conversando` | Conversa em andamento com o agente |
 | `consulta_agendada` | Agendamento marcado — na tela, "Agendou" |
 | `consulta_cancelada` | Agendamento cancelado — na tela, "Cancelou" |
-| `follow_up_1_feito` | Primeira retomada enviada |
-| `follow_up_2_feito` | Segunda retomada |
-| `follow_up_3_feito` | Terceira retomada |
+| `follow_up_1_feito` | Primeira retomada enviada — escrito pela migração `0030`, ver [4.20](#420-agente_followups-migração-0030) |
+| `follow_up_2_feito` | Segunda retomada — idem |
+| `follow_up_3_feito` | Terceira retomada. **Ninguém escreve este status**: o follow-up automático tem duas etapas, e a terceira coluna só recebe quem a equipe arrastar até lá |
 | `consulta_realizada` | Compareceu |
 | `paciente_recorrente` | Voltou mais de uma vez — na tela, "Cliente Recorrente" |
 
@@ -1749,7 +1888,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 13 tabelas**. São 14 políticas:
+RLS está **ativo nas 14 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -1766,6 +1905,7 @@ RLS está **ativo nas 13 tabelas**. São 14 políticas:
 | `api_tokens` | `api_tokens_all` | ALL | `authenticated` — acesso total |
 | `mensagens_whatsapp` | `mensagens_whatsapp_all` | ALL | `authenticated` — acesso total |
 | `configuracoes_agente` | `configuracoes_agente_all` | ALL | `authenticated` — acesso total |
+| `agente_followups` | `agente_followups_le` | SELECT | `authenticated` — **só leitura**: quem grava é a Edge Function, com a `service_role` |
 | `usuarios` | `usuarios_update_own` | UPDATE | **só o próprio** (`auth.uid() = id`) |
 
 Mais **10** políticas em `storage.objects` (seção 7) — leitura, escrita e
@@ -2200,7 +2340,7 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 13 tabelas + 5 views)
+-- Objetos criados (esperado: 14 tabelas + 5 views)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
 
@@ -2209,12 +2349,13 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 24 — 14 em public + 10 em storage)
+-- Políticas (esperado: 25 — 15 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
 --    nenhum era o certo: a `0020` acrescentou duas políticas de DELETE e
 --    ninguém atualizou as cópias. Mexeu nas políticas? Mude AQUI, e só aqui.
+--    (A `0030` acrescentou a 15ª, a de leitura de `agente_followups`.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 
@@ -2269,6 +2410,25 @@ where p.pronamespace = 'public'::regnamespace and p.prosecdef
 
 -- O cálculo dos minutos funciona? (esperado: 95)
 select floor(extract(epoch from (now() - (now() - interval '95 minutes'))) / 60)::integer;
+
+-- FOLLOW-UP (migração 0030)
+--
+-- A fila de agora. Num banco recém-instalado volta vazia — e volta vazia
+-- também com o follow-up funcionando bem, porque quem foi atendido sai dela.
+select * from public.followups_pendentes();
+
+-- O cron está agendado? (esperado: 1 linha, DEPOIS do npm run followup:ligar)
+select jobname, schedule, active from cron.job where jobname = 'followups';
+
+-- As últimas batidas. `succeeded` com `return_message` vazio é o normal:
+-- é o minuto em que não havia ninguém na fila.
+select d.status, d.return_message, d.start_time
+from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+where j.jobname = 'followups' order by d.start_time desc limit 10;
+
+-- O que já foi enviado, e o texto que o modelo escreveu na hora
+select etapa, enviado_em, texto from public.agente_followups
+order by enviado_em desc limit 20;
 ```
 
 Para testar de verdade, faça as requisições com a `anon key` sem estar

@@ -76,7 +76,7 @@ interface ConsultaResumo {
 }
 
 /** `quinta-feira, 04/09, às 10:00` — data falável, no fuso da clínica. */
-function quando(iso: string, fuso: string): string {
+export function quando(iso: string, fuso: string): string {
   const p = new Intl.DateTimeFormat('pt-BR', {
     timeZone: fuso, weekday: 'long', day: '2-digit', month: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,

@@ -149,7 +149,7 @@ resto só se lê.
 # A EMPRESA                   🔒   os dados que o sistema preenche, e como ler
 # FLUXO DE ATENDIMENTO             o passo a passo da conversa
 # REGRAS DE ATENDIMENTO            preço, fotos, urgência, os "Nunca..."
-# FERRAMENTAS                 🔒   quando usar cada uma das oito
+# FERRAMENTAS                 🔒   quando usar cada uma das nove
 # DATA E HORA ATUAL           🔒   preenchida a cada mensagem
 # QUEM ESTÁ FALANDO COM VOCÊ  🔒   a ficha da pessoa, preenchida a cada mensagem
 ```
@@ -317,7 +317,7 @@ De propósito:
 |---|---|
 | [`prompt.md`](prompt.md) | O prompt inteiro, funcionando. É o exemplo |
 | [`README.md`](README.md) § 8 | Por que cada decisão do prompt foi tomada, e o que o primeiro teste real quebrou |
-| [`README.md`](README.md) § 7 | As oito ferramentas, uma a uma |
+| [`README.md`](README.md) § 7 | As nove ferramentas, uma a uma |
 | [`DATABASE.md`](../DATABASE.md) § 8 | Tudo o que o agente lê e grava no banco |
 | [`CLAUDE.md`](../CLAUDE.md) | As regras do projeto inteiro |
 

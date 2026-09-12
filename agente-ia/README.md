@@ -58,8 +58,8 @@ caminhos próprios. Esta é a lista completa, para ninguém procurar:
 
 | Onde | O que é |
 |---|---|
-| `supabase/functions/whatsapp/` | O cérebro. Recebe o webhook e responde — e mais 9 rotas atrás da sessão: `/enviar` (a equipe responde), `/prompt-oficial` (o texto que a tela mostra), `/foto` (foto de perfil), `/conexao`, `/conexao/conectar`, `/conexao/desconectar`, `/conexao/apontar-webhook` (o botão "Apontar para cá"), `/apagar-pessoa` e `/chaves-ia`, que diz quais fornecedores de IA têm chave — **sim ou não, nunca a chave** |
-| `supabase/functions/_shared/` | As 10 peças compartilhadas: `llm.ts` (modelos, transcrição e descrição de foto), `evolution.ts` + `uazapi.ts` + `whatsapp.ts` + `pontes.ts` (as **duas pontes** e a porta entre elas), `ferramentas.ts` (as oito), `prompt.ts` + `prompt-oficial.ts`, `db.ts` e `tempo.ts` (conversão de fuso) |
+| `supabase/functions/whatsapp/` | O cérebro. Recebe o webhook e responde; recebe também o `/follow-up`, que o cron chama para retomar conversas frias (seção 8.6) — e mais 9 rotas atrás da sessão: `/enviar` (a equipe responde), `/prompt-oficial` (o texto que a tela mostra), `/foto` (foto de perfil), `/conexao`, `/conexao/conectar`, `/conexao/desconectar`, `/conexao/apontar-webhook` (o botão "Apontar para cá"), `/apagar-pessoa` e `/chaves-ia`, que diz quais fornecedores de IA têm chave — **sim ou não, nunca a chave** |
+| `supabase/functions/_shared/` | As 10 peças compartilhadas: `llm.ts` (modelos, transcrição e descrição de foto), `evolution.ts` + `uazapi.ts` + `whatsapp.ts` + `pontes.ts` (as **duas pontes** e a porta entre elas), `ferramentas.ts` (as nove), `prompt.ts` + `prompt-oficial.ts`, `db.ts` e `tempo.ts` (conversão de fuso) |
 
 **No banco**
 
@@ -420,7 +420,7 @@ não depois.
 | `src/components/ModalPortal.tsx` | 5 | Leva o modal para o `<body>` — ver Convenções no [`CLAUDE.md`](../CLAUDE.md) |
 | `supabase/migrations/0011_procedimentos_detalhados.sql` | 5 | A coluna `descricao_longa` e os 20 textos da clínica de origem |
 | `supabase/migrations/0012_procedimentos_texto_enxuto.sql` | 5 | Os 20 textos, curtos (~430) e sem travessão |
-| `supabase/functions/_shared/ferramentas.ts` | 3 | As 8 ferramentas e o `executar()` que despacha |
+| `supabase/functions/_shared/ferramentas.ts` | 3 | As 9 ferramentas e o `executar()` que despacha |
 | `supabase/functions/_shared/db.ts` | 3 | PostgREST por `fetch` puro: ler, gravar e subir mídia |
 | `src/lib/conversas.ts` | 4 | Ler, enviar, assumir e devolver — fora dos componentes |
 | `agente-ia/prompt.md` | 1 | ⭐ O prompt da Letícia — identidade, tom, fluxo e regras |
@@ -552,7 +552,7 @@ perderia justamente o sinal que ela existe para dar.
 
 ## 7. As ferramentas
 
-O que a Letícia consegue fazer no sistema. Oito coisas — nada além.
+O que a Letícia consegue fazer no sistema. Nove coisas — nada além.
 
 | Ferramenta | Quando ela usa | Já existe? |
 |---|---|---|
@@ -564,6 +564,7 @@ O que a Letícia consegue fazer no sistema. Oito coisas — nada além.
 | `detalhes_do_servico` | "como funciona a coloração?", "tenho medo de doer" | Sim — lê `descricao_longa` de `servicos_clinica` |
 | `historico_do_cliente` | "da última vez", "o que eu fiz mesmo?" | Sim — os atendimentos realizados, cancelados e as faltas (`faltou`, migração 0015) |
 | `atualizar_ficha` | Quando descobre nome, serviços de interesse, ou o funil avança | Escrita direta no CRM. O campo de serviços é **lista com `enum`** — ver abaixo |
+| `nao_perturbe` | "não tenho mais interesse", "pare de me mandar mensagem" | Liga `crm_clinica_dados.nao_perturbe` (migração `0030`) e tira a pessoa do follow-up **para sempre**. Não a cala: se ela escrever, a Letícia responde |
 
 > **Os nomes são neutros desde 11/09/2026**, para servir a qualquer ramo:
 > eram `marcar_consulta`, `remarcar_consulta`, `cancelar_consulta`,
@@ -1536,6 +1537,92 @@ mensagem.
 
 ---
 
+## 8.6. O follow-up — quando ela fala primeiro
+
+Toda a função é reativa: sem webhook, ela não acorda. O follow-up (migração
+`0030`) é a única exceção, e por isso ele tem um relógio próprio — o `pg_cron`,
+batendo de minuto em minuto dentro do banco.
+
+| Etapa | Quando | Janela |
+|---|---|---|
+| 1 | 10 minutos de silêncio | qualquer hora |
+| 2 | 24 horas de silêncio | das 9h às 20h30, todo dia |
+
+**Quem cancelou um agendamento pula a etapa 1** e vai direto para a 2 — que,
+com a janela, chega no dia seguinte. Cancelar não é dizer "não quero mais": a
+pessoa quis, escolheu dia e hora e desmarcou, quase sempre porque o horário
+deixou de servir. Dez minutos depois de desmarcar, um "quer remarcar?" soa como
+quem não aceitou o não; no dia seguinte, é um convite. A mensagem dela cita o
+serviço e o dia que tinha marcado, e **não pergunta por que cancelou**.
+
+**O relógio é a última mensagem do LEAD, nunca a dela.** Contando de outro
+jeito, o toque da etapa 1 reiniciaria o próprio relógio e empurraria a etapa 2
+para sempre. Como o prazo conta do último `autor = 'paciente'`, o ciclo se
+rearma sozinho: quando a pessoa responde, os toques já enviados ficam para trás
+e valem de novo no próximo silêncio.
+
+**Só a etapa 2 respeita a janela**, e isso é decisão de produto: dez minutos é
+dentro de uma conversa viva, e quem escreveu 22h30 está acordado às 22h40. Um
+dia depois, não.
+
+### Ligar, desligar e olhar
+
+```bash
+npm run followup:ligar      # guarda endereço e segredo no Vault e agenda o cron
+npm run followup:desligar   # tira o cron da agenda; a fila e o histórico ficam
+npm run followup:estado     # o job, as batidas da última hora e a fila de agora
+```
+
+**Ainda não há tela para isto.** Prazos, janela e a chave geral são colunas de
+`configuracoes_agente`, e mudam por SQL — no SQL Editor do Supabase:
+
+```sql
+update public.configuracoes_agente
+   set followup_1_minutos = 15,
+       followup_2_horas   = 48,
+       followup_inicio    = '09:00',
+       followup_fim       = '20:30',
+       followup_ativo     = true;
+```
+
+Vale na batida seguinte do cron, sem republicar nada. Desligar pelo
+`followup_ativo` e desligar pelo `followup:desligar` têm o mesmo efeito prático;
+a diferença é que o primeiro deixa o cron batendo à toa.
+
+O `ligar` existe porque a migração **não pode** agendar o cron: `cron.schedule`
+precisa do endereço da sua função (que carrega o ref do projeto) e do
+`WEBHOOK_SEGREDO`, e nada de instalação nenhuma entra em arquivo versionado —
+a mesma regra da seção 11. Os dois valores vão para o **Vault** do seu banco, e
+a rota `/follow-up` recusa quem chegar sem o segredo, exatamente como o webhook.
+
+### O que ele nunca faz
+
+As travas moram na `followups_pendentes()`, no banco — a lista completa está na
+seção 4.20 do [`DATABASE.md`](../DATABASE.md). Em resumo, ele **não procura**:
+
+- quem **pediu para não ser procurado** (a ferramenta `nao_perturbe`);
+- quem **já é cliente** (`consulta_realizada` ou `paciente_recorrente`) — o
+  follow-up existe para trazer quem ainda não veio, e perseguir cliente com
+  "ainda está aí?" é o que faz uma empresa virar aquela que não larga o pé;
+- quem **tem hora marcada**;
+- quem falou **por último** — aí a Letícia está devendo resposta, e o follow-up
+  esconderia um defeito atrás de uma simpatia;
+- conversa **pausada ou assumida** pela equipe;
+- e vale o **modo teste**, pela mesma `agente_deve_responder()` do webhook.
+
+A chamada ao modelo vai **sem ferramenta nenhuma**: follow-up não marca, não
+cancela e não grava ficha. E o texto é gerado com o contexto da conversa, o que
+custa uma chamada com o prompt inteiro por toque — some isso na conta da
+seção 9 se você tiver muita conversa esfriando.
+
+> ⚠️ **O risco não é técnico, é do WhatsApp.** Evolution e uazapi são WhatsApp
+> não oficial. O toque de 10 minutos é dentro de uma conversa viva e é seguro;
+> o de 24 horas, indo para quem nunca respondeu, é o padrão que faz um número
+> ser bloqueado. O chip dedicado (parte 1.4 do `INSTALACAO.md`) é o que mantém
+> o estrago contido.
+
+---
+
 ## 9. Custos
 
 Aproximado, para uma conversa completa até o agendamento — algo como 15
@@ -1633,6 +1720,14 @@ npm run agente:deploy    # regera o prompt e publica a função
 > esquecer disso devolvia um **401 `Unauthorized` que parecia erro de código** —
 > o CLI usa a sessão do `supabase login`, que expira, e o token do arquivo não
 > entrava sozinho. Hoje entra sempre.
+
+> **Publicar do Windows já publicou uma atendente diferente.** O Git entrega os
+> `.md` com CRLF nessa plataforma, e o `gerar-prompt.mjs` embutia o texto cru:
+> o prompt subia com `\r\n` em cada quebra — uns 375 caracteres a mais em
+> **toda** chamada ao modelo, e um `prompt-oficial.ts` que aparecia modificado
+> no `git status` sem ninguém ter editado nada. O gerador agora normaliza para
+> `\n` ao ler. Se você vir o arquivo gerado sujo depois de um `npm run prompt`,
+> é aqui que se procura.
 
 ### Apontar o webhook — o passo que ninguém adivinha
 

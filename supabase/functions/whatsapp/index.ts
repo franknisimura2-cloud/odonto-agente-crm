@@ -5,6 +5,7 @@
  *
  * AS ROTAS:
  *   POST /whatsapp                 webhook da ponte ativa (WEBHOOK_SEGREDO)
+ *   POST /whatsapp/follow-up       o cron manda retomar as conversas frias (WEBHOOK_SEGREDO)
  *   POST /whatsapp/enviar          envio manual do atendente (sessão)
  *   GET  /whatsapp/prompt-oficial  o prompt publicado, para a tela comparar (sessão)
  *   GET  /whatsapp/foto            foto de perfil de um número (sessão)
@@ -30,7 +31,7 @@ import {
 import {
   conversar, transcrever, descreverImagem, chavesDeIA, type MensagemLLM,
 } from '../_shared/llm.ts'
-import { montarPrompt, montarFicha } from '../_shared/prompt.ts'
+import { montarPrompt, montarFicha, quando } from '../_shared/prompt.ts'
 import { PROMPT_OFICIAL } from '../_shared/prompt-oficial.ts'
 import { ferramentasCom, executar, type Contexto } from '../_shared/ferramentas.ts'
 import { ponteAtiva } from '../_shared/pontes.ts'
@@ -78,6 +79,17 @@ const HISTORICO = 50
 
 const FUSO_PADRAO = 'America/Sao_Paulo'
 
+/**
+ * Quantos follow-ups uma rodada do cron envia.
+ *
+ * O cron bate de minuto em minuto, então a fila que sobrar volta na batida
+ * seguinte. O teto existe para o dia em que alguém ligar o follow-up num banco
+ * com dois mil leads calados: sem ele, seriam dois mil pedidos ao modelo e dois
+ * mil disparos de WhatsApp no mesmo minuto — que é o retrato do que faz um
+ * número ser bloqueado.
+ */
+const MAX_FOLLOWUPS = 20
+
 interface Lead {
   id: string
   nome_lead: string | null
@@ -121,6 +133,7 @@ Deno.serve(async (req) => {
   const rota = url.pathname.replace(/^\/whatsapp/, '').replace(/\/+$/, '')
 
   try {
+    if (req.method === 'POST' && rota === '/follow-up') return await rotaFollowUp(req)
     if (req.method === 'POST' && rota === '/enviar') return await rotaEnviar(req)
     if (req.method === 'GET' && rota === '/prompt-oficial') return await rotaPromptOficial(req)
     if (req.method === 'GET' && rota === '/foto') return await rotaFoto(req)
@@ -184,14 +197,7 @@ async function rotaWebhook(req: Request): Promise<Response> {
   const mensagemId = criadas[0].id
 
   // A partir daqui é demorado — o webhook não espera.
-  const trabalho = processar(ponte, lead, mensagemId, recebida)
-  if (typeof (globalThis as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime
-      ?.waitUntil === 'function') {
-    ;(globalThis as { EdgeRuntime: { waitUntil(p: Promise<unknown>): void } })
-      .EdgeRuntime.waitUntil(trabalho)
-  } else {
-    trabalho.catch((e) => console.error('processar:', e))
-  }
+  emSegundoPlano(processar(ponte, lead, mensagemId, recebida))
 
   return json({ ok: true })
 }
@@ -400,6 +406,290 @@ async function processar(
   } catch (e) {
     console.error('status:', e)
   }
+}
+
+// ---------------------------------------------------------------------------
+// Follow-up: voltar a falar quando a conversa esfria
+//
+// Esta é a única rota em que a agente fala sem ninguém ter escrito. Quem a
+// acorda é o `pg_cron`, de minuto em minuto, pela `disparar_followups()`
+// (migração 0030) — e ele só bate na porta quando há fila.
+//
+// ⚠️ A POLÍTICA NÃO MORA AQUI. Quem decide quem recebe, de qual etapa e sob
+// quais travas é a `followups_pendentes()`, no banco. Esta rota executa a
+// lista que vier — é o que permite mudar a regra sem republicar a função.
+// ---------------------------------------------------------------------------
+
+interface Pendente {
+  lead_id: string
+  whatsapp: string
+  nome: string | null
+  etapa: number
+  minutos_calado: number
+}
+
+async function rotaFollowUp(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const enviado = req.headers.get('x-webhook-segredo') ?? url.searchParams.get('segredo') ?? ''
+  if (!SEGREDO || enviado !== SEGREDO) {
+    return json({ ok: false, motivo: 'nao_autorizado' }, 401)
+  }
+
+  const fila = (await rpc<Pendente[]>('followups_pendentes', {})).slice(0, MAX_FOLLOWUPS)
+  if (!fila.length) return json({ ok: true, enviados: 0 })
+
+  // A RESERVA É SÍNCRONA, E ISSO NÃO É DETALHE.
+  //
+  // O cron bate a cada minuto; gerar o texto e enviar leva segundos. Se a
+  // reserva ficasse no trabalho de fundo, a batida seguinte leria a mesma fila
+  // e a pessoa receberia o mesmo toque duas vezes. Gravando a linha antes de
+  // responder 200, a segunda batida já não enxerga ninguém.
+  const reservados: { pendente: Pendente; reservaId: string }[] = []
+  for (const pendente of fila) {
+    try {
+      const linhas = await inserir<{ id: string }>('agente_followups', {
+        lead_id: pendente.lead_id,
+        etapa: pendente.etapa,
+      })
+      if (linhas.length) reservados.push({ pendente, reservaId: linhas[0].id })
+    } catch (e) {
+      console.error('reservar follow-up:', e)
+    }
+  }
+
+  const trabalho = (async () => {
+    for (const { pendente, reservaId } of reservados) {
+      try {
+        await mandarFollowUp(pendente, reservaId)
+      } catch (e) {
+        // A reserva sai junto: sem isso, um erro de rede tiraria a pessoa da
+        // fila para sempre sem que ela tivesse recebido nada.
+        console.error(`follow-up etapa ${pendente.etapa} de ${pendente.lead_id}:`, e)
+        await apagar('agente_followups', `id=eq.${reservaId}`).catch(() => {})
+      }
+    }
+  })()
+  emSegundoPlano(trabalho)
+
+  return json({ ok: true, enviados: reservados.length })
+}
+
+/** "12 minutos", "3 horas", "2 dias" — como a instrução conta o silêncio. */
+function silencio(minutos: number): string {
+  if (minutos < 90) return `${minutos} minutos`
+  const horas = Math.round(minutos / 60)
+  if (horas < 36) return `${horas} horas`
+  return `${Math.round(horas / 24)} dias`
+}
+
+/**
+ * A instrução que transforma a agente de quem responde em quem retoma.
+ *
+ * ELA VAI NO FIM DO PROMPT, e não no `prompt.md`. Duas razões: o `prompt.md`
+ * tem contrato conferido (`npm run prompt` valida seções e marcadores), e este
+ * texto só existe em uma das duas situações em que ela fala. Prompt que
+ * descreve uma situação que não está acontecendo é ruído em toda mensagem.
+ */
+function instrucaoDeFollowUp(etapa: number, minutos: number, oQueAconteceu: string[]): string {
+  const comum = [
+    '',
+    '',
+    '# AGORA: VOCÊ ESTÁ RETOMANDO A CONVERSA',
+    '',
+    `A pessoa parou de responder faz ${silencio(minutos)}. A última mensagem da`,
+    'conversa foi SUA. Ninguém pediu nada agora: quem está te acordando é o',
+    'relógio do sistema.',
+    '',
+    'Escreva UMA mensagem curta, de no máximo 25 palavras, que:',
+    '',
+    '-   Retoma de onde a conversa parou, citando o que ELA falou. Se você não',
+    '    tem nada concreto para citar, faça uma pergunta simples sobre o que ela',
+    '    procurava.',
+    '-   Não repete, com outras palavras, o que você já disse na última mensagem.',
+    '-   Termina com uma pergunta fácil de responder.',
+    '',
+    'Nunca cobre, nunca pressione, e nunca peça desculpa por estar escrevendo.',
+    'Nunca diga que ficou esperando, que a mensagem é automática, nem use as',
+    'palavras "follow-up", "sistema", "lembrete" ou "retomando".',
+    'Não ofereça serviço que ela não pediu, e não invente horário.',
+    '',
+    'Responda só com o texto da mensagem. Não use ferramenta nenhuma, e não',
+    'escreva duas mensagens: uma só.',
+  ]
+
+  const fecho = etapa === 1
+    ? [
+        '',
+        'É o primeiro toque, poucos minutos depois. O tom é o de quem continua na',
+        'mesma conversa, não o de quem volta depois de um tempo.',
+      ]
+    : [
+        '',
+        'Já passou um dia, e esta é a ÚLTIMA vez que você escreve por conta',
+        'própria: se ela não responder, ninguém volta a procurá-la. Deixe a porta',
+        'aberta sem despedida dramática, e sem dizer que é a última tentativa.',
+      ]
+
+  return [...comum, ...oQueAconteceu, ...fecho].join('\n')
+}
+
+/**
+ * O que aconteceu com o agendamento desta pessoa — e o que fazer com isso.
+ *
+ * ⚠️ CANCELAR NÃO É DIZER "NÃO QUERO MAIS". Sem esta explicação, o modelo lê
+ * "cancelado" no histórico e escreve um follow-up genérico, do tipo "posso
+ * ajudar em algo?" — desperdiçando a única informação que torna esse toque o
+ * mais valioso de todos: a pessoa quis, escolheu dia e hora, e desmarcou. Quem
+ * cancela é quem está mais perto de remarcar.
+ *
+ * Fica só no follow-up, e não na ficha (`montarFicha`), de propósito: as frases
+ * da ficha são contrato com o `prompt.md` e são cobradas em toda mensagem de
+ * toda conversa. Aqui a informação só é lida quando ela vai, de fato, retomar.
+ */
+async function oQueAconteceuComOAgendamento(leadId: string, fuso: string): Promise<string[]> {
+  const consultas = await selecionar<{ procedimento: string; data_consulta: string; status: string }>(
+    `consultas?select=procedimento,data_consulta,status&lead_id=eq.${leadId}` +
+    `&order=data_consulta.desc&limit=1`,
+  )
+  const ultima = consultas[0]
+  if (!ultima) return []
+
+  if (ultima.status === 'cancelada') {
+    return [
+      '',
+      `Ela chegou a marcar ${ultima.procedimento} para ${quando(ultima.data_consulta, fuso)}`,
+      'e depois cancelou.',
+      '',
+      '**Cancelar não é dizer "não quero mais".** Ela quis, escolheu dia e hora,',
+      'e desmarcou — quase sempre porque o horário deixou de servir. Trate como',
+      'alguém que ainda quer resolver: retome pelo assunto dela e abra espaço',
+      'para um horário novo. Nunca pergunte por que cancelou, nunca peça',
+      'explicação, e não trate o cancelamento como um problema.',
+    ]
+  }
+
+  if (ultima.status === 'faltou') {
+    return [
+      '',
+      `Ela tinha ${ultima.procedimento} marcado para ${quando(ultima.data_consulta, fuso)}`,
+      'e não apareceu.',
+      '',
+      'Não cobre a falta, não diga que ela faltou e não peça explicação. Fale',
+      'como quem quer remarcar, e nada mais.',
+    ]
+  }
+
+  return []
+}
+
+async function mandarFollowUp(pendente: Pendente, reservaId: string): Promise<void> {
+  // ELA RESPONDEU NO MEIO DO CAMINHO?
+  //
+  // Entre a reserva e o envio passam segundos — o suficiente para a pessoa
+  // escrever. Sem esta conferência, ela receberia um "ainda está aí?" logo
+  // depois de ter falado, que é a cara de um robô que não lê. É a mesma
+  // pergunta que `chegouMaisNova` faz na espera do webhook, pelo mesmo motivo.
+  //
+  // A reserva sai junto: o registro é do que FOI enviado, e nada foi. E o
+  // ciclo se rearma sozinho, porque a mensagem nova empurra `ultima_do_lead`
+  // para frente.
+  const ultimas = await selecionar<{ autor: string }>(
+    `mensagens_whatsapp?select=autor&lead_id=eq.${pendente.lead_id}` +
+    `&order=criada_em.desc&limit=1`,
+  )
+  if (ultimas[0]?.autor === 'paciente') {
+    await apagar('agente_followups', `id=eq.${reservaId}`)
+    console.log(`follow-up cancelado: ${pendente.lead_id} respondeu antes do envio`)
+    return
+  }
+
+  const leads = await selecionar<Lead>(
+    `crm_clinica?select=${CAMPOS_LEAD}&id=eq.${pendente.lead_id}&limit=1`,
+  )
+  const lead = leads[0]
+  if (!lead) throw new Error('lead sumiu entre a fila e o envio')
+
+  const cfg = await selecionar<{ modelo: string; prompt: string | null; nome_agente: string }>(
+    'configuracoes_agente?select=modelo,prompt,nome_agente&limit=1',
+  )
+  const clinica = await selecionar<{ fuso_horario: string | null }>(
+    'configuracoes_clinica?select=fuso_horario&limit=1',
+  )
+  const fuso = clinica[0]?.fuso_horario || FUSO_PADRAO
+
+  const ficha = await montarFicha(lead.id, lead, fuso)
+  const sistema = (await montarPrompt(cfg[0]?.prompt, ficha, cfg[0]?.nome_agente)) +
+    instrucaoDeFollowUp(
+      pendente.etapa,
+      pendente.minutos_calado,
+      await oQueAconteceuComOAgendamento(lead.id, fuso),
+    )
+
+  // SEM FERRAMENTA NENHUMA, de propósito. Um follow-up não marca, não cancela e
+  // não grava ficha: ele só chama de volta. Com as ferramentas na mesa, o
+  // modelo tenta "adiantar" o agendamento de quem nunca confirmou nada.
+  const r = await conversar({
+    modelo: cfg[0]?.modelo ?? 'gpt-4.1-mini',
+    sistema,
+    mensagens: await montarHistorico(lead.id),
+    ferramentas: [],
+  })
+
+  // A agente é instruída a mandar uma só; se vier mais, vale a primeira.
+  const texto = r.texto.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)[0] ?? ''
+  if (!texto) throw new Error('o modelo devolveu texto vazio')
+
+  const ponte = await ponteAtiva()
+  const pausa = Math.min(5000, Math.max(1200, texto.length * 22))
+  await ponte.digitando(pendente.whatsapp, pausa)
+  await new Promise((espere) => setTimeout(espere, pausa))
+
+  const idExterno = await ponte.enviarTexto(pendente.whatsapp, texto)
+
+  await inserir('mensagens_whatsapp', {
+    lead_id: lead.id,
+    autor: 'agente',
+    tipo: 'texto',
+    conteudo: texto,
+    id_externo: idExterno,
+    lida: true,
+  }, true)
+
+  // O texto fica gravado na reserva: é como se lê depois se a mensagem que o
+  // modelo escreveu naquele momento ficou boa.
+  await atualizar('agente_followups', `id=eq.${reservaId}`, { texto })
+
+  // ---- O Kanban -----------------------------------------------------------
+  //
+  // As colunas "Follow-up 1" e "Follow-up 2" existem desde a migração 0001 e
+  // nunca receberam ninguém: não havia o que movesse um lead para lá. Agora há.
+  //
+  // ⚠️ SÓ AVANÇA DE ONDE FAZ SENTIDO, e o filtro é a parte importante desta
+  // linha. Quem está em `consulta_realizada` ou `paciente_recorrente` aparece
+  // na tela Clientes (ver README, "Status do funil"): mover essa pessoa para
+  // `follow_up_1_feito` a arrancaria de Clientes e a jogaria em Leads, semanas
+  // depois de ela ter virado cliente.
+  //
+  // `consulta_cancelada` ENTRA na lista. Quem cancelou continua sendo lead — o
+  // cancelamento não é uma saída do funil, é um passo dentro dele —, e ver o
+  // card em "Follow-up" é como a equipe descobre que aquele cancelamento já foi
+  // perseguido. O cancelamento em si não se perde: fica no agendamento, na
+  // conversa e em `agente_followups`.
+  const deOnde = pendente.etapa === 1
+    ? 'iniciou_conversa,conversando,consulta_cancelada'
+    : 'iniciou_conversa,conversando,consulta_cancelada,follow_up_1_feito'
+
+  try {
+    await atualizar(
+      'crm_clinica',
+      `id=eq.${lead.id}&status=in.(${deOnde})`,
+      { status: `follow_up_${pendente.etapa}_feito` },
+    )
+  } catch (e) {
+    console.error('status do follow-up:', e)
+  }
+
+  console.log(`follow-up etapa ${pendente.etapa} enviado para ${lead.id}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -659,6 +949,26 @@ async function rotaEnviar(req: Request): Promise<Response> {
 // ---------------------------------------------------------------------------
 // Apoio
 // ---------------------------------------------------------------------------
+
+/**
+ * Continua trabalhando depois de responder.
+ *
+ * A ponte reenvia o que demora, e reenvio vira mensagem duplicada — por isso o
+ * webhook responde 200 na hora e pensa depois. O `waitUntil` é o que mantém a
+ * execução viva no runtime do Supabase; fora dele (um `deno run` local) o
+ * `catch` evita que a promessa solta derrube o processo.
+ */
+function emSegundoPlano(trabalho: Promise<unknown>): void {
+  const runtime = (globalThis as {
+    EdgeRuntime?: { waitUntil(p: Promise<unknown>): void }
+  }).EdgeRuntime
+
+  if (typeof runtime?.waitUntil === 'function') {
+    runtime.waitUntil(trabalho)
+  } else {
+    trabalho.catch((e) => console.error('segundo plano:', e))
+  }
+}
 
 /**
  * Chegou mensagem do PACIENTE depois desta?
