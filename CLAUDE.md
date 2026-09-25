@@ -634,6 +634,14 @@ entra no histórico, e o botão voltar do aparelho desfaz um passo em vez de
 sair da tela. Dentro de uma conversa a faixa do topo some (o `Layout` confere
 o `?lead=`). Os três componentes recebem `celular` e se ajustam sozinhos.
 
+**Agenda, no celular, é um dia em lista**
+([`AgendaDiaCelular`](src/components/AgendaDiaCelular.tsx)), e não a grade:
+sete colunas em 390px não mostram nome de ninguém. Por baixo a página carrega
+a semana do dia escolhido, então trocar de dia na faixa não espera o banco. A
+profissional escolhida no seletor fica no `localStorage`
+(`agenda.celular.profissional`): o celular da Danielle abre na agenda da
+Danielle.
+
 ### Modal vive dentro de `ModalPortal`
 
 `position: fixed` promete "em relação à janela" — e quebra a promessa se

@@ -15,6 +15,8 @@ import { darBaixa } from '../lib/baixaConsulta'
 import { formatarParaExibicao } from '../lib/telefones'
 import AgendaSemana from '../components/AgendaSemana'
 import AgendaMes from '../components/AgendaMes'
+import AgendaDiaCelular from '../components/AgendaDiaCelular'
+import { useTelaPequena } from '../lib/useTelaPequena'
 import NovoAgendamentoModal from '../components/NovoAgendamentoModal'
 import type {
   ConsultaAgenda, Profissional, ProfissionalBloqueio, ProfissionalHorario,
@@ -203,9 +205,27 @@ function DetalheConsulta({
 /* ──────────────────────────────────────────────
    Página
 ────────────────────────────────────────────── */
+/**
+ * A profissional escolhida no celular fica guardada NESTE aparelho: é o
+ * celular da Danielle, e ele abre na agenda da Danielle. Vazio = todas.
+ */
+const CHAVE_PROFISSIONAL_CELULAR = 'agenda.celular.profissional'
+
 export default function Agenda() {
   const [modo, setModo] = useState<Modo>('semana')
   const [referencia, setReferencia] = useState(new Date())
+
+  // No celular não há semana nem mês: é um dia por vez (`AgendaDiaCelular`).
+  // Por baixo, carrega a semana dele — trocar de dia na faixa não espera o banco.
+  const pequena = useTelaPequena()
+  const modoCarregado: Modo = pequena ? 'semana' : modo
+  const [profCelular, setProfCelular] = useState(() => {
+    try { return localStorage.getItem(CHAVE_PROFISSIONAL_CELULAR) ?? '' } catch { return '' }
+  })
+  const escolherProfCelular = (id: string) => {
+    setProfCelular(id)
+    try { localStorage.setItem(CHAVE_PROFISSIONAL_CELULAR, id) } catch { /* segue */ }
+  }
 
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [horarios, setHorarios] = useState<ProfissionalHorario[]>([])
@@ -221,13 +241,13 @@ export default function Agenda() {
 
   /* Intervalo carregado: exatamente o que a visão atual desenha. */
   const intervalo = useMemo(() => {
-    if (modo === 'semana') {
+    if (modoCarregado === 'semana') {
       const dias = diasDaSemana(referencia)
       return { inicio: dias[0], fim: somarDias(dias[6], 1) }
     }
     const dias = gradeDoMes(referencia)
     return { inicio: dias[0], fim: somarDias(dias[dias.length - 1], 1) }
-  }, [modo, referencia])
+  }, [modoCarregado, referencia])
 
   /* Profissionais, jornadas e bloqueios — carregam uma vez. */
   useEffect(() => {
@@ -323,6 +343,99 @@ export default function Agenda() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
         <div style={{ width: 32, height: 32, border: `3px solid ${MARCA_SUAVE}`, borderTopColor: MARCA, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
+  const modais = (
+    <>
+      {modalNovo && (
+        <NovoAgendamentoModal
+          profissionais={profissionais}
+          horarios={horarios}
+          bloqueios={bloqueios}
+          consultas={consultas}
+          dataInicial={modalNovo.quando}
+          profissionalInicial={pequena ? (profCelular || null) : idsVisiveisReais.length === 1 ? idsVisiveisReais[0] : null}
+          onClose={() => setModalNovo(null)}
+          onSalvo={(c) => setConsultas((prev) => [...prev, c])}
+        />
+      )}
+
+      {detalhe && (
+        <DetalheConsulta
+          consulta={detalhe}
+          profissional={detalhe.profissional_id ? profissionaisPorId.get(detalhe.profissional_id) : undefined}
+          onFechar={() => setDetalhe(null)}
+          onCancelada={(c) => setConsultas((prev) => prev.map((x) => (x.id === c.id ? c : x)))}
+        />
+      )}
+    </>
+  )
+
+  if (pequena) {
+    // Uma profissional guardada que saiu da clínica (apagada ou desativada)
+    // vira "todas", em vez de uma agenda vazia sem explicação.
+    const escolhida = ativos.find((p) => p.id === profCelular)
+    const doCelular = escolhida ? consultas.filter((c) => c.profissional_id === escolhida.id) : consultas
+    const jornada = escolhida
+      ? horarios.find((h) => h.profissional_id === escolhida.id && h.dia_semana === referencia.getDay() && h.ativo)
+      : undefined
+    const expediente = !escolhida ? null
+      : jornada ? `${jornada.hora_inicio.slice(0, 5)}–${jornada.hora_fim.slice(0, 5)}`
+      : false
+
+    return (
+      <div className="pagina" style={{ padding: '32px 36px' }}>
+        {profissionais.length === 0 ? (
+          <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '36px 20px', textAlign: 'center' }}>
+            <CalendarDays size={30} strokeWidth={1.2} color="#B9C8CE" style={{ marginBottom: 8 }} />
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#16232B' }}>Nenhuma agenda ainda</div>
+            <div style={{ fontSize: 13, color: '#6B818C', marginTop: 6, lineHeight: 1.6 }}>
+              A agenda nasce com o cadastro de um profissional.
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <select
+                value={escolhida ? escolhida.id : ''}
+                onChange={(e) => escolherProfCelular(e.target.value)}
+                aria-label="De quem é a agenda"
+                style={{
+                  flex: 1, minWidth: 0, height: 44, padding: '0 12px', borderRadius: 10,
+                  border: '1px solid #DCE6EA', background: '#fff', color: '#16232B',
+                  fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 600,
+                }}>
+                <option value="">Todas as profissionais</option>
+                {ativos.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}{p.sobrenome ? ` ${p.sobrenome}` : ''}</option>
+                ))}
+              </select>
+              <button onClick={() => setModalNovo({})} aria-label="Novo agendamento"
+                style={{
+                  width: 44, height: 44, borderRadius: 10, border: 'none', background: MARCA, color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+                }}>
+                <Plus size={20} />
+              </button>
+            </div>
+
+            {erro && (
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 12 }}>{erro}</div>
+            )}
+
+            <AgendaDiaCelular
+              dia={referencia}
+              onMudarDia={setReferencia}
+              consultas={doCelular}
+              profissionaisPorId={profissionaisPorId}
+              expediente={expediente}
+              onClickConsulta={setDetalhe}
+            />
+          </>
+        )}
+        {modais}
       </div>
     )
   }
@@ -454,27 +567,7 @@ export default function Agenda() {
         </div>
       )}
 
-      {modalNovo && (
-        <NovoAgendamentoModal
-          profissionais={profissionais}
-          horarios={horarios}
-          bloqueios={bloqueios}
-          consultas={consultas}
-          dataInicial={modalNovo.quando}
-          profissionalInicial={idsVisiveisReais.length === 1 ? idsVisiveisReais[0] : null}
-          onClose={() => setModalNovo(null)}
-          onSalvo={(c) => setConsultas((prev) => [...prev, c])}
-        />
-      )}
-
-      {detalhe && (
-        <DetalheConsulta
-          consulta={detalhe}
-          profissional={detalhe.profissional_id ? profissionaisPorId.get(detalhe.profissional_id) : undefined}
-          onFechar={() => setDetalhe(null)}
-          onCancelada={(c) => setConsultas((prev) => prev.map((x) => (x.id === c.id ? c : x)))}
-        />
-      )}
+      {modais}
     </div>
   )
 }
