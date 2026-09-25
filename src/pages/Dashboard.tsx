@@ -16,6 +16,7 @@ import {
   type DateRange, type PeriodKey,
 } from '../lib/periodo'
 import { MARCA_SUAVE, MARCA, useCorDoSistema } from '../lib/marca'
+import { useTelaPequena } from '../lib/useTelaPequena'
 
 /* ──────────────────────────────────────────────
    O DASHBOARD NÃO CARREGA PESSOAS — ELE FAZ PERGUNTAS.
@@ -180,29 +181,38 @@ function Vazio({ texto }: { texto: string }) {
    KPI Card
 ────────────────────────────────────────────── */
 function KpiCard({
-  icon: Icon, label, value, description, suffix = '', delay,
+  icon: Icon, label, value, description, suffix = '', delay, celular, largo,
 }: {
   icon: React.ElementType; label: string; value: number
   description: string; suffix?: string; delay: string
+  /** No celular os números vão numa grade de duas colunas; `largo` ocupa as duas. */
+  celular?: boolean; largo?: boolean
 }) {
   return (
     <div
       className={`fade-in-${delay}`}
-      style={{ ...CARTAO, padding: '22px 24px', flex: 1, minWidth: 0, cursor: 'default' }}
+      style={{
+        ...CARTAO, padding: celular ? '16px' : '22px 24px', flex: 1, minWidth: 0, cursor: 'default',
+        gridColumn: largo ? '1 / -1' : undefined,
+      }}
       onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)')}
       onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = 'none')}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 12.5, color: '#6B818C', fontWeight: 500, marginBottom: 8 }}>{label}</div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#16232B', lineHeight: 1 }}>
+          <div style={{ fontSize: celular ? 28 : 32, fontWeight: 800, color: '#16232B', lineHeight: 1 }}>
             <AnimatedCounter value={value} suffix={suffix} />
           </div>
           <div style={{ fontSize: 12, color: '#6B818C', marginTop: 6 }}>{description}</div>
         </div>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: MARCA_SUAVE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon size={20} strokeWidth={1.8} style={{ color: MARCA }} />
-        </div>
+        {/* No celular, em meia largura, o ícone disputa espaço com o número —
+            e é o número que a dona abriu o celular para ver. */}
+        {!celular && (
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: MARCA_SUAVE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon size={20} strokeWidth={1.8} style={{ color: MARCA }} />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -213,6 +223,10 @@ function KpiCard({
 ────────────────────────────────────────────── */
 export default function Dashboard() {
   const navigate = useNavigate()
+  // No celular quem abre o Dashboard é a dona, para ver os números — não para
+  // operar. Os gráficos empilham, o de serviços vira lista (os nomes do
+  // catálogo não cabem ao lado de uma barra em 390px) e a tabela vira cartões.
+  const pequena = useTelaPequena()
   // Os gráficos pedem o hex: `stroke` e `fill` do recharts viram atributo de
   // SVG, e atributo não aceita variável CSS. O hook redesenha quando a cor muda.
   const cor = useCorDoSistema()
@@ -380,17 +394,17 @@ export default function Dashboard() {
     <div className="pagina" style={{ padding: '32px 36px', maxWidth: 1300, margin: '0 auto' }}>
 
       {/* Header */}
-      <div className="fade-in-1" style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#16232B', margin: 0 }}>
+      <div className="fade-in-1" style={{ marginBottom: pequena ? 16 : 28 }}>
+        <h1 style={{ fontSize: pequena ? 20 : 24, fontWeight: 800, color: '#16232B', margin: 0 }}>
           Olá, {greeting()}! ;)
         </h1>
-        <p style={{ fontSize: 16.5, fontWeight: 500, color: '#3A5560', marginTop: 8 }}>
+        <p style={{ fontSize: pequena ? 14.5 : 16.5, fontWeight: 500, color: '#3A5560', marginTop: pequena ? 4 : 8, marginBottom: 0 }}>
           Aqui está o resumo da sua empresa.
         </p>
       </div>
 
       {/* Period Filter */}
-      <div className="fade-in-2" style={{ marginBottom: 28 }}>
+      <div className="fade-in-2" style={{ marginBottom: pequena ? 16 : 28 }}>
         <FiltroPeriodo
           periodo={periodo}
           onPeriodo={setPeriodo}
@@ -415,14 +429,16 @@ export default function Dashboard() {
       )}
 
       {/* KPI Cards */}
-      <div className="fade-in-3" style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        <KpiCard icon={Users} label="Novos Contatos" value={numeros.novos_contatos} description="Pessoas que entraram em contato no período" delay="3" />
-        <KpiCard icon={Calendar} label="Agendamentos" value={numeros.consultas_agendadas} description="Total de agendamentos marcados no período" delay="4" />
-        <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={taxaConversao} suffix="%" description="Percentual de novos contatos que agendaram" delay="5" />
+      <div className="fade-in-3" style={pequena
+        ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }
+        : { display: 'flex', gap: 16, marginBottom: 24 }}>
+        <KpiCard icon={Users} label="Novos Contatos" value={numeros.novos_contatos} description="Pessoas que entraram em contato no período" delay="3" celular={pequena} />
+        <KpiCard icon={Calendar} label="Agendamentos" value={numeros.consultas_agendadas} description="Total de agendamentos marcados no período" delay="4" celular={pequena} />
+        <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={taxaConversao} suffix="%" description="Percentual de novos contatos que agendaram" delay="5" celular={pequena} largo />
       </div>
 
       {/* Gráfico 1: linha */}
-      <div className="fade-in-4" style={{ ...CARTAO, marginBottom: 24 }}
+      <div className="fade-in-4 cartao" style={{ ...CARTAO, marginBottom: pequena ? 16 : 24 }}
         onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)')}
         onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = 'none')}
       >
@@ -446,24 +462,24 @@ export default function Dashboard() {
           </div>
         )}
 
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={pequena ? 220 : 260}>
           <LineChart data={dadosLinha} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E7EEF0" vertical={false} />
             <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#6B818C' }} axisLine={false} tickLine={false} minTickGap={16} />
             <YAxis tick={{ fontSize: 11, fill: '#6B818C' }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip content={<LineTooltip />} />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} iconType="circle" iconSize={8} />
-            <Line type="monotone" dataKey="Atendimentos" stroke={cor.principal} strokeWidth={2.5} dot={{ r: 3, fill: cor.principal }} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="Agendamentos" stroke="#1A7A48" strokeWidth={2.5} dot={{ r: 3, fill: '#1A7A48' }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="Atendimentos" stroke={cor.principal} strokeWidth={2.5} dot={pequena ? false : { r: 3, fill: cor.principal }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="Agendamentos" stroke="#1A7A48" strokeWidth={2.5} dot={pequena ? false : { r: 3, fill: '#1A7A48' }} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Gráficos 2 e 3, lado a lado */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: pequena ? '1fr' : '1fr 1fr', gap: 16, marginBottom: pequena ? 16 : 24 }}>
 
         {/* Dias da semana */}
-        <div className="fade-in-5" style={CARTAO}
+        <div className="fade-in-5 cartao" style={CARTAO}
           onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)')}
           onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = 'none')}
         >
@@ -475,7 +491,7 @@ export default function Dashboard() {
             <Vazio texto="Nenhum contato no período." />
           ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={dadosSemana} barSize={28} margin={{ top: 12, right: 4, bottom: 0, left: -20 }}>
+              <BarChart data={dadosSemana} barSize={pequena ? 22 : 28} margin={{ top: 12, right: 4, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E7EEF0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6B818C' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#6B818C' }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -502,7 +518,7 @@ export default function Dashboard() {
             Cada barra usa a COR DO PRÓPRIO PROFISSIONAL — a mesma da Agenda.
             Assim o gráfico e o calendário falam a mesma língua, e a cor deixa de
             ser enfeite: ela identifica. */}
-        <div className="fade-in-6" style={CARTAO}
+        <div className="fade-in-6 cartao" style={CARTAO}
           onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)')}
           onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = 'none')}
         >
@@ -523,7 +539,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E7EEF0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#6B818C' }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <YAxis
-                  type="category" dataKey="nome" width={124}
+                  type="category" dataKey="nome" width={pequena ? 96 : 124}
                   tick={{ fontSize: 11.5, fill: '#16232B' }} axisLine={false} tickLine={false}
                 />
                 <Tooltip
@@ -553,7 +569,7 @@ export default function Dashboard() {
           têm que responder: "procurado" conta por quando a PESSOA chegou (o
           mesmo campo do KPI "Novos Contatos"); "realizado", por quando o
           AGENDAMENTO aconteceu. Quem chegou em agosto pode ter feito em setembro. */}
-      <div className="fade-in-6" style={{ ...CARTAO, marginBottom: 24 }}
+      <div className="fade-in-6 cartao" style={{ ...CARTAO, marginBottom: pequena ? 16 : 24 }}
         onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)')}
         onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = 'none')}
       >
@@ -563,6 +579,47 @@ export default function Dashboard() {
         />
         {dadosProcedimentos.length === 0 ? (
           <Vazio texto="Nenhum serviço procurado ou realizado no período." />
+        ) : pequena ? (
+          // No celular, lista em vez de gráfico: o nome inteiro em cima, e as
+          // duas barras embaixo, na mesma escala (a do maior número da lista),
+          // com o número escrito — a comparação continua sendo a distância
+          // entre as duas.
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: 'flex', gap: 14, fontSize: 12, color: '#6B818C', marginBottom: 12 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: cor.claro }} /> Procurado
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1A7A48' }} /> Realizado
+              </span>
+            </div>
+            {(() => {
+              const maior = Math.max(1, ...dadosProcedimentos.flatMap((d) => [d.Procurado, d.Realizado]))
+              return dadosProcedimentos.map((d) => (
+                <div key={d.procedimento} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#16232B', marginBottom: 5, lineHeight: 1.35 }}>
+                    {d.procedimento}
+                  </div>
+                  {([['Procurado', cor.claro], ['Realizado', '#1A7A48']] as const).map(([chave, fundo]) => (
+                    <div key={chave} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                      <div style={{ flex: 1, height: 9, background: '#F2F6F7', borderRadius: 5, overflow: 'hidden' }}>
+                        <div style={{ width: `${(d[chave] / maior) * 100}%`, height: '100%', background: fundo, borderRadius: 5 }} />
+                      </div>
+                      <span style={{ width: 28, textAlign: 'right', fontSize: 12.5, fontWeight: 600, color: '#16232B' }}>
+                        {d[chave]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))
+            })()}
+            {procedimentos.length > TETO_PROCEDIMENTOS && (
+              <div style={{ fontSize: 11.5, color: '#6B818C', marginTop: 6 }}>
+                Mostrando os {TETO_PROCEDIMENTOS} mais procurados, de{' '}
+                {procedimentos.length} com movimento no período.
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <ResponsiveContainer width="100%" height={Math.max(200, dadosProcedimentos.length * 46)}>
@@ -602,7 +659,7 @@ export default function Dashboard() {
       </div>
 
       {/* Próximos Agendamentos */}
-      <div className="fade-in-6" style={{ ...CARTAO, marginBottom: 32 }}
+      <div className="fade-in-6 cartao" style={{ ...CARTAO, marginBottom: 32 }}
         onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)')}
         onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.boxShadow = 'none')}
       >
@@ -616,6 +673,34 @@ export default function Dashboard() {
         {proximas.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: '#6B818C', fontSize: 13.5 }}>
             Nenhum agendamento futuro.
+          </div>
+        ) : pequena ? (
+          // Quatro colunas não cabem: cada agendamento vira uma linha de duas
+          // — quem e quando em cima, o quê e com quem embaixo.
+          <div>
+            {proximas.map((c) => (
+              <div key={c.id}
+                onClick={() => c.lead && navigate(`/leads/${c.lead.id}`)}
+                style={{ padding: '12px 0', borderBottom: '1px solid #EDF2F4', cursor: c.lead ? 'pointer' : 'default' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 600, color: '#16232B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {c.lead?.nome_lead ?? '—'}
+                  </span>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: '#16232B', flexShrink: 0 }}>
+                    {fmtDataHora(c.data_consulta)}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: '#6B818C', marginTop: 3, lineHeight: 1.4 }}>
+                  {c.procedimento}
+                </div>
+                {c.profissional && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B818C', marginTop: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.profissional.cor, display: 'inline-block' }} />
+                    {`${c.profissional.nome} ${c.profissional.sobrenome}`.trim()}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

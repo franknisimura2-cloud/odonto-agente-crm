@@ -95,7 +95,7 @@ export default function FiltroPeriodo({ periodo, onPeriodo, faixa, onFaixa }: Pr
 
       {personalizado && (
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 10,
+          display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
           background: '#fff', border: '1px solid #DCE6EA', borderRadius: 10,
           padding: '7px 14px', fontSize: 13, fontFamily: FONTE,
         }}>

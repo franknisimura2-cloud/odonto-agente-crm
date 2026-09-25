@@ -642,6 +642,12 @@ profissional escolhida no seletor fica no `localStorage`
 (`agenda.celular.profissional`): o celular da Danielle abre na agenda da
 Danielle.
 
+**Dashboard, no celular, é para ler** — quem abre é a dona. Os números vão
+numa grade de duas colunas (a taxa de conversão ocupa as duas), os gráficos
+empilham, o de **serviços vira lista** (nome inteiro em cima e as duas barras
+embaixo, na mesma escala — os nomes do catálogo não cabem ao lado de uma barra
+em 390px) e os próximos agendamentos viram linhas em vez de tabela.
+
 ### Modal vive dentro de `ModalPortal`
 
 `position: fixed` promete "em relação à janela" — e quebra a promessa se
