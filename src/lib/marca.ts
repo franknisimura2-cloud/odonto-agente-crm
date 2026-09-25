@@ -141,6 +141,7 @@ export function aplicarCorDoSistema(id: string | null | undefined): void {
   raiz.setProperty('--cor-marca-claro', cor.claro)
   raiz.setProperty('--cor-marca-suave', cor.suave)
   trocarIconeDaAba(cor.principal)
+  trocarAplicativo(cor)
   if (cor !== atual) {
     atual = cor
     ouvintes.forEach((f) => { f() })
@@ -195,6 +196,24 @@ export function corLembradaNoNavegador(): string | null {
 // `public/favicon.svg` é o mesmo desenho, na cor padrão: é ele que aparece
 // antes deste código rodar. ⚠️ Mudou o desenho, mude nos dois.
 // ---------------------------------------------------------------------------
+
+/**
+ * O aplicativo instalado na cor da empresa: o manifesto (Android), o ícone da
+ * tela inicial (iPhone) e a cor da barra de cima do celular.
+ *
+ * Existe um manifesto e um jogo de ícones PRONTO para cada cor, em
+ * `public/app/` — o celular lê arquivos, não variável CSS. O `index.html` nasce
+ * apontando para o petróleo; aqui ele passa a apontar para a cor escolhida.
+ * Trocar o `href` basta: o navegador relê o que estiver ali na hora de
+ * instalar. Um ícone já instalado não muda sozinho — só reinstalando.
+ */
+function trocarAplicativo(cor: CorDoSistema): void {
+  const manifesto = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+  if (manifesto) manifesto.href = `/app/manifest-${cor.id}.webmanifest`
+  const icone = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
+  if (icone) icone.href = `/app/apple-touch-icon-${cor.id}.png`
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', cor.principal)
+}
 
 function trocarIconeDaAba(hex: string): void {
   const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')

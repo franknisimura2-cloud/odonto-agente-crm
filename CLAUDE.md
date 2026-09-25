@@ -655,6 +655,28 @@ está ali, e o "ver todos" leva à lista com o mesmo `?etapa=`. **Não há
 arrastar no celular, de propósito**: mover de etapa continua no computador e
 na ficha. **Leads e Clientes** viram cartões (o cartão inteiro abre a ficha).
 
+### Instalar como aplicativo
+
+O sistema é instalável ("Adicionar à tela inicial"), e abre sem a barra do
+navegador. São três peças:
+
+| Peça | Onde |
+|---|---|
+| Um manifesto e um jogo de ícones **por cor do sistema** (7 × 3 PNG) | [`public/app/`](public/app/) |
+| Os links que apontam para eles, nascendo no petróleo | [`index.html`](index.html) |
+| A troca para a cor da empresa, junto com o resto da cor | `trocarAplicativo`, em [`marca.ts`](src/lib/marca.ts) |
+
+O celular lê **arquivo**, não variável CSS — por isso um arquivo por cor, e
+não um só pintado em tempo de execução. Cor nova no seletor pede o manifesto e
+os três PNG dela em `public/app/`, com o mesmo `id` da cor no nome. O ícone de
+um aplicativo **já instalado** não muda sozinho: a empresa trocou a cor, quem
+quiser o ícone novo reinstala.
+
+**Não há service worker, de propósito.** O Chrome instala sem ele, e um
+service worker que guarda arquivos em cache é o caminho mais curto para uma
+clínica ficar presa numa versão velha depois de um deploy. Sem ele, o
+aplicativo precisa de internet — como o sistema inteiro já precisa.
+
 ### Modal vive dentro de `ModalPortal`
 
 `position: fixed` promete "em relação à janela" — e quebra a promessa se

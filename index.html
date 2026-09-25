@@ -9,6 +9,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <!-- O nome do produto. O mesmo nome mora em src/lib/marca.ts: trocou aqui, troque lá. -->
     <title>Núcleo</title>
+
+    <!-- INSTALAR COMO APLICATIVO ("Adicionar à tela inicial").
+         Estes três apontam para a cor padrão (petróleo), e são TROCADOS em tempo
+         de execução por `aplicarCorDoSistema` (src/lib/marca.ts) para a cor da
+         empresa — é o que faz o ícone instalado sair na cor dela. Os arquivos
+         das 7 cores moram em public/app/. -->
+    <link rel="manifest" href="/app/manifest-petroleo.webmanifest" />
+    <link rel="apple-touch-icon" href="/app/apple-touch-icon-petroleo.png" />
+    <meta name="theme-color" content="#1E6E8C" />
+    <!-- O iPhone ignora o manifesto para abrir sem a barra do Safari: pede estes. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Núcleo" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>
   <body>
     <div id="root"></div>
