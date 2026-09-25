@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Send, UserCheck, Undo2, Bot, ExternalLink, MessagesSquare, FileText,
-  PanelRightOpen, PanelRightClose,
+  PanelRightOpen, PanelRightClose, ChevronLeft, UserRound,
 } from 'lucide-react'
 import { formatarParaExibicao } from '../lib/telefones'
 import { urlDaMidia, hora, diaPorExtenso, nomeDoAutor } from '../lib/conversas'
@@ -96,7 +96,7 @@ function Midia({ mensagem }: { mensagem: MensagemWhatsapp }) {
 /* ──────────────────────────────────────────────
    Um balão
 ────────────────────────────────────────────── */
-function Balao({ mensagem, mostrarAutor }: { mensagem: MensagemWhatsapp; mostrarAutor: boolean }) {
+function Balao({ mensagem, mostrarAutor, celular }: { mensagem: MensagemWhatsapp; mostrarAutor: boolean; celular?: boolean }) {
   const doPaciente = mensagem.autor === 'paciente'
   const temMidia = !!mensagem.midia_url && mensagem.tipo !== 'texto'
   const Icone = ICONE_AUTOR[mensagem.autor]
@@ -118,10 +118,12 @@ function Balao({ mensagem, mostrarAutor }: { mensagem: MensagemWhatsapp; mostrar
 
       <div style={{
         ...ESTILO_BALAO[mensagem.autor],
-        maxWidth: '68%', padding: '9px 12px 7px', borderRadius: 12,
+        // No celular 68% deixa uma frase curta em três linhas: 85%, como no
+        // próprio WhatsApp.
+        maxWidth: celular ? '85%' : '68%', padding: '9px 12px 7px', borderRadius: 12,
         borderBottomLeftRadius: doPaciente ? 3 : 12,
         borderBottomRightRadius: doPaciente ? 12 : 3,
-        fontSize: 13.5, lineHeight: 1.55, wordBreak: 'break-word',
+        fontSize: celular ? 15 : 13.5, lineHeight: 1.55, wordBreak: 'break-word',
       }}>
         {temMidia && (
           <div style={{ marginBottom: mensagem.conteudo ? 7 : 2 }}>
@@ -166,11 +168,18 @@ interface Props {
   onDevolver: () => void
   painelAberto: boolean
   onAlternarPainel: () => void
+  /**
+   * No celular a conversa é a tela inteira: ganha a seta de voltar para a
+   * lista, os botões encolhem para caber, e o botão do painel abre a ficha no
+   * lugar da conversa (ver `Conversas`).
+   */
+  celular?: boolean
+  onVoltar?: () => void
 }
 
 export default function JanelaConversa({
   conversa, mensagens, carregando, enviando, erro, onEnviar, onAssumir, onDevolver,
-  painelAberto, onAlternarPainel,
+  painelAberto, onAlternarPainel, celular, onVoltar,
 }: Props) {
   const { nome: nomeAgente, porExtenso: agentePorExtenso } = useAgente()
   const [texto, setTexto] = useState('')
@@ -213,9 +222,20 @@ export default function JanelaConversa({
 
       {/* Cabeçalho */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '13px 20px',
+        display: 'flex', alignItems: 'center', gap: celular ? 8 : 12,
+        padding: celular ? '8px 10px 8px 4px' : '13px 20px',
         borderBottom: '1px solid #DCE6EA', background: '#fff', flexShrink: 0,
       }}>
+        {onVoltar && (
+          <button onClick={onVoltar} aria-label="Voltar para a lista"
+            style={{
+              width: 40, height: 40, border: 'none', background: 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', flexShrink: 0,
+            }}>
+            <ChevronLeft size={24} color="#16232B" />
+          </button>
+        )}
         <div style={{
           width: 38, height: 38, borderRadius: '50%', background: MARCA_SUAVE, color: MARCA,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -227,60 +247,71 @@ export default function JanelaConversa({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
-              fontSize: 14, fontWeight: 700, color: '#16232B',
+              fontSize: celular ? 15 : 14, fontWeight: 700, color: '#16232B',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {nome}
             </span>
-            <Link to={`/leads/${conversa.lead_id}`}
+            {/* No celular a ficha abre pelo botão da pessoa, à direita. */}
+            {!celular && <Link to={`/leads/${conversa.lead_id}`}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11,
                 color: MARCA, textDecoration: 'none', fontWeight: 600, flexShrink: 0,
               }}>
               ficha <ExternalLink size={10} />
-            </Link>
+            </Link>}
           </div>
           <div style={{ fontSize: 11.5, color: '#6B818C' }}>
             {formatarParaExibicao(conversa.whatsapp_lead)}
           </div>
         </div>
 
+        {/* No celular os rótulos encolhem: "Devolver para a Letícia" sozinho
+            já é maior que o espaço que sobra ao lado do nome. O verbo fica —
+            ícone sem palavra não diz que devolver religa a IA. */}
         {assumida ? (
           <button onClick={onDevolver}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px',
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: celular ? '9px 11px' : '7px 13px',
               borderRadius: 9, border: '1px solid #DCE6EA', background: '#fff',
-              cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#16232B',
+              cursor: 'pointer', fontSize: celular ? 13 : 12.5, fontWeight: 600, color: '#16232B',
               fontFamily: FONTE, flexShrink: 0,
             }}>
-            <Undo2 size={13} /> Devolver para a {nomeAgente}
+            <Undo2 size={13} /> {celular ? 'Devolver' : `Devolver para a ${nomeAgente}`}
           </button>
         ) : (
           <button onClick={onAssumir}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px',
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: celular ? '9px 11px' : '7px 13px',
               borderRadius: 9, border: 'none', background: MARCA, color: '#fff',
-              cursor: 'pointer', fontSize: 12.5, fontWeight: 600,
+              cursor: 'pointer', fontSize: celular ? 13 : 12.5, fontWeight: 600,
               fontFamily: FONTE, flexShrink: 0,
             }}>
-            <UserCheck size={13} /> Assumir conversa
+            <UserCheck size={13} /> {celular ? 'Assumir' : 'Assumir conversa'}
           </button>
         )}
 
         <button onClick={onAlternarPainel}
-          title={painelAberto ? 'Esconder os dados da pessoa' : 'Ver os dados da pessoa'}
+          title={celular ? 'Ver a ficha da pessoa' : painelAberto ? 'Esconder os dados da pessoa' : 'Ver os dados da pessoa'}
+          aria-label={celular ? 'Ver a ficha da pessoa' : undefined}
           style={{
-            display: 'flex', alignItems: 'center', padding: 8, borderRadius: 9,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: celular ? 0 : 8, width: celular ? 40 : undefined, height: celular ? 40 : undefined,
+            borderRadius: 9,
             border: '1px solid #DCE6EA', background: painelAberto ? MARCA_SUAVE : '#fff',
             cursor: 'pointer', color: painelAberto ? MARCA : '#6B818C', flexShrink: 0,
           }}>
-          {painelAberto ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+          {celular
+            ? <UserRound size={18} />
+            : painelAberto ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
         </button>
       </div>
 
       {/* Quem está atendendo */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 7, padding: '7px 20px',
+        display: 'flex', alignItems: 'center', gap: 7, padding: celular ? '7px 14px' : '7px 20px',
         background: assumida ? '#FFFBEB' : '#F7FAFB',
         borderBottom: `1px solid ${assumida ? '#FDE68A' : '#EDF2F4'}`,
         fontSize: 11.5, color: assumida ? '#92400E' : '#6B818C', flexShrink: 0,
@@ -295,7 +326,7 @@ export default function JanelaConversa({
       </div>
 
       {/* Mensagens */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', background: '#F2F6F7' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: celular ? '12px 10px' : '16px 20px', background: '#F2F6F7' }}>
         {carregando && mensagens.length === 0 && (
           <div style={{ textAlign: 'center', fontSize: 12.5, color: '#6B818C', padding: 20 }}>
             Carregando a conversa…
@@ -319,7 +350,7 @@ export default function JanelaConversa({
                   </span>
                 </div>
               )}
-              <Balao mensagem={m} mostrarAutor={!anterior || anterior.autor !== m.autor} />
+              <Balao mensagem={m} mostrarAutor={!anterior || anterior.autor !== m.autor} celular={celular} />
             </div>
           )
         })}
@@ -327,7 +358,12 @@ export default function JanelaConversa({
       </div>
 
       {/* Caixa de resposta */}
-      <div style={{ borderTop: '1px solid #DCE6EA', background: '#fff', padding: '12px 20px', flexShrink: 0 }}>
+      <div style={{
+        borderTop: '1px solid #DCE6EA', background: '#fff', flexShrink: 0,
+        // No celular, o pé da tela do iPhone (a barrinha de voltar ao início)
+        // fica em cima do botão Enviar sem o `safe-area-inset-bottom`.
+        padding: celular ? '8px 10px calc(8px + env(safe-area-inset-bottom))' : '12px 20px',
+      }}>
         {erro && (
           <div style={{
             marginBottom: 9, padding: '8px 12px', background: '#FEF2F2',
@@ -342,11 +378,14 @@ export default function JanelaConversa({
             <textarea
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
+              // No celular o Enter do teclado quebra a linha, como no WhatsApp:
+              // não existe Shift no teclado da tela, e sem isso não haveria
+              // como escrever em dois parágrafos. Quem envia é o botão.
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() }
+                if (!celular && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() }
               }}
               rows={1}
-              placeholder="Escreva a resposta… (Enter envia, Shift+Enter quebra a linha)"
+              placeholder={celular ? 'Escreva a resposta…' : 'Escreva a resposta… (Enter envia, Shift+Enter quebra a linha)'}
               style={{
                 flex: 1, padding: '10px 13px', borderRadius: 10, border: '1px solid #DCE6EA',
                 fontSize: 13.5, fontFamily: FONTE, color: '#16232B', outline: 'none',
@@ -359,14 +398,16 @@ export default function JanelaConversa({
             <button
               onClick={enviar}
               disabled={enviando || !texto.trim()}
+              aria-label={celular ? 'Enviar' : undefined}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '10px 17px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: celular ? 0 : '10px 17px', width: celular ? 44 : undefined, height: celular ? 44 : undefined,
                 borderRadius: 10, border: 'none',
                 background: enviando || !texto.trim() ? '#B6C6CD' : MARCA,
                 color: '#fff', cursor: enviando || !texto.trim() ? 'not-allowed' : 'pointer',
                 fontSize: 13, fontWeight: 600, fontFamily: FONTE, flexShrink: 0,
               }}>
-              <Send size={14} /> {enviando ? 'Enviando…' : 'Enviar'}
+              <Send size={celular ? 18 : 14} /> {!celular && (enviando ? 'Enviando…' : 'Enviar')}
             </button>
           </div>
         ) : (
@@ -374,9 +415,11 @@ export default function JanelaConversa({
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             gap: 14, flexWrap: 'wrap',
           }}>
-            <span style={{ fontSize: 12.5, color: '#6B818C', lineHeight: 1.55 }}>
-              Para escrever para esta pessoa, <strong>assuma a conversa</strong> — assim
-              a {nomeAgente} para de responder e vocês dois não falam ao mesmo tempo.
+            <span style={{ fontSize: 12.5, color: '#6B818C', lineHeight: 1.55, flex: celular ? 1 : undefined }}>
+              {celular
+                ? <>Para responder, <strong>assuma</strong>: a {nomeAgente} para de falar aqui.</>
+                : <>Para escrever para esta pessoa, <strong>assuma a conversa</strong> — assim
+                  a {nomeAgente} para de responder e vocês dois não falam ao mesmo tempo.</>}
             </span>
             <button onClick={onAssumir}
               style={{

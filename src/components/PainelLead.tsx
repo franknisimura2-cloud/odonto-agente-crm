@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   X, Phone, CalendarDays, Clock, FileText,
-  ExternalLink, MessageCircleQuestion, CircleUser,
+  ExternalLink, MessageCircleQuestion, CircleUser, ChevronLeft,
 } from 'lucide-react'
 import { formatarParaExibicao } from '../lib/telefones'
 import { STATUS_LEAD, ROTULO_LEAD, STATUS_CONSULTA, ROTULO_CONSULTA } from '../lib/statusLead'
@@ -55,9 +55,11 @@ function dataCurta(iso: string | null): string {
 interface Props {
   leadId: string
   onFechar: () => void
+  /** No celular o painel é a tela inteira, e fechar é voltar para a conversa. */
+  celular?: boolean
 }
 
-export default function PainelLead({ leadId, onFechar }: Props) {
+export default function PainelLead({ leadId, onFechar, celular }: Props) {
   const { nome: nomeAgente } = useAgente()
   const [lead, setLead] = useState<LeadClinica | null>(null)
   const [consultas, setConsultas] = useState<ConsultaComProfissional[]>([])
@@ -98,21 +100,39 @@ export default function PainelLead({ leadId, onFechar }: Props) {
 
   return (
     <div style={{
-      width: 300, flexShrink: 0, borderLeft: '1px solid #DCE6EA', background: '#fff',
+      width: celular ? '100%' : 300, flexShrink: 0,
+      borderLeft: celular ? 'none' : '1px solid #DCE6EA', background: '#fff',
       display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto',
     }}>
 
-      {/* Fechar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '13px 18px', borderBottom: '1px solid #EDF2F4', flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16232B' }}>Sobre a pessoa</span>
-        <button onClick={onFechar} title="Esconder o painel"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B818C', display: 'flex', padding: 2 }}>
-          <X size={16} />
-        </button>
-      </div>
+      {/* Fechar — no celular, uma seta de voltar à conversa, no lugar de onde
+          a pessoa veio (o X do computador fecha uma coluna que ali não existe). */}
+      {celular ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '8px 10px 8px 4px', borderBottom: '1px solid #EDF2F4', flexShrink: 0,
+        }}>
+          <button onClick={onFechar} aria-label="Voltar para a conversa"
+            style={{
+              width: 40, height: 40, border: 'none', background: 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}>
+            <ChevronLeft size={24} color="#16232B" />
+          </button>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#16232B' }}>Sobre a pessoa</span>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '13px 18px', borderBottom: '1px solid #EDF2F4', flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: '#16232B' }}>Sobre a pessoa</span>
+          <button onClick={onFechar} title="Esconder o painel"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B818C', display: 'flex', padding: 2 }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {carregando && (
         <div style={{ padding: '26px 18px', fontSize: 12.5, color: '#6B818C', textAlign: 'center' }}>

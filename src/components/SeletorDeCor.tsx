@@ -67,7 +67,7 @@ export default function SeletorDeCor({ clinicaId, corSalva, onSalvo }: Props) {
   }
 
   return (
-    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginTop: 16 }}>
+    <div className="cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginTop: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#16232B', marginBottom: 6 }}>Cor do sistema</div>
       <p style={{ fontSize: 12.5, color: '#6B818C', margin: 0, lineHeight: 1.6 }}>
         A cor dos botões, dos links e do menu. As etiquetas de status e as cores

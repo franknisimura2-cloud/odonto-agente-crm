@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget: no Android, o teclado encolhe a página em vez de
+         cobrir o pé dela — é o que deixa a caixa de resposta das Conversas
+         acima do teclado. O iPhone ignora, e já rola até o campo sozinho. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <!-- O nome do produto. O mesmo nome mora em src/lib/marca.ts: trocou aqui, troque lá. -->
     <title>Núcleo</title>
   </head>

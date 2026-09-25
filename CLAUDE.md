@@ -614,6 +614,7 @@ As classes que existem hoje:
 | Classe | Onde vai | O que faz no celular |
 |---|---|---|
 | `pagina` | O contêiner de cada página (o `padding: '32px 36px'`) | Margem de 16px nos lados |
+| `cartao` | O cartão branco de ficha e configuração (o `padding: '22px 26px'`) | Margem interna de 16px |
 | `modal-fundo` | O fundo escuro de **todo** modal | Respiro de 12px em volta da caixa |
 | `modal-cheio` | Junto de `modal-fundo`, em modal de **formulário** | A caixa (o primeiro filho) ocupa a tela inteira |
 
@@ -625,6 +626,13 @@ computador e sai apertado no celular — e ninguém percebe até abrir num.
 
 O computador **não muda**: nenhuma regra vale acima de 767px. No tablet
 (até 1023px) a barra lateral só nasce recolhida.
+
+**Conversas, no celular, é uma coluna por vez** — lista, conversa, ficha —, e
+qual aparece sai do endereço: `?lead=X` abre a conversa, `&ficha=1` a ficha.
+Por isso a conversa aberta é lida da URL, e não guardada em estado: cada passo
+entra no histórico, e o botão voltar do aparelho desfaz um passo em vez de
+sair da tela. Dentro de uma conversa a faixa do topo some (o `Layout` confere
+o `?lead=`). Os três componentes recebem `celular` e se ajustam sozinhos.
 
 ### Modal vive dentro de `ModalPortal`
 

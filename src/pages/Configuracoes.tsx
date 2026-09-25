@@ -133,7 +133,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
+    <div className="cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#16232B', marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #EDF2F4' }}>
         {title}
       </div>

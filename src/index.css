@@ -85,6 +85,13 @@ body {
     padding-right: 16px !important;
   }
 
+  /* O cartão branco das páginas de ficha e configuração (o `padding:
+     '22px 26px'`): 26px de cada lado, somados aos 16px da página, deixam o
+     texto com metade da tela. */
+  .cartao {
+    padding: 16px !important;
+  }
+
   /* O fundo escuro de todo modal: 24px de respiro é demais em volta de uma
      caixa que já não cabe. */
   .modal-fundo {

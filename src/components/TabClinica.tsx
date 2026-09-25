@@ -183,7 +183,7 @@ export default function TabClinica() {
 
   return (
     <div>
-      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
+      <div className="cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#16232B', marginBottom: 6 }}>Dados da Empresa</div>
         <p style={{ fontSize: 12.5, color: '#6B818C', margin: '0 0 18px', paddingBottom: 14, borderBottom: '1px solid #EDF2F4', lineHeight: 1.6 }}>
           O Agente de IA lê estas informações no banco sempre que precisa falar do
@@ -270,7 +270,7 @@ export default function TabClinica() {
       </div>
 
       {/* O que o agente lê — consulta real à view, não uma imitação */}
-      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px' }}>
+      <div className="cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px' }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#16232B', marginBottom: 6 }}>O que o Agente de IA lê</div>
         <p style={{ fontSize: 12.5, color: '#6B818C', margin: '0 0 16px', lineHeight: 1.6 }}>
           Exatamente estas linhas, uma informação por linha, direto da view{' '}

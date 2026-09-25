@@ -261,7 +261,7 @@ export default function SecretariaIA() {
   }
   if (!cfg) {
     return (
-      <div style={cartao}>
+      <div className="cartao" style={cartao}>
         <div style={titulo}>Configuração não encontrada</div>
         <p style={legenda}>
           A tabela <code style={{ fontFamily: MONO }}>configuracoes_agente</code> está vazia.
@@ -343,7 +343,7 @@ export default function SecretariaIA() {
       </div>
 
       {/* ---------------- Estado ---------------- */}
-      <div style={{ ...cartao, borderColor: situacao.borda }}>
+      <div className="cartao" style={{ ...cartao, borderColor: situacao.borda }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12, flexShrink: 0,
@@ -386,7 +386,7 @@ export default function SecretariaIA() {
 
           Trocar o nome no meio da operação confunde quem fala com ela há
           meses, e a mudança vale para toda conversa em andamento. */}
-      <div style={cartao}>
+      <div className="cartao" style={cartao}>
         <div style={titulo}>A atendente</div>
         <p style={{ ...legenda, marginBottom: 18 }}>
           Como ela se chama e quem pensa as respostas dela.
@@ -633,7 +633,7 @@ export default function SecretariaIA() {
       />
 
       {/* ---------------- Modo teste ---------------- */}
-      <div style={cartao}>
+      <div className="cartao" style={cartao}>
         <div style={titulo}>Modo de teste</div>
         <p style={{ ...legenda, marginBottom: 10, color: '#3A5560', fontWeight: 500 }}>
           Teste a {nomeAgente} ({agenteTitulo}) antes de liberar o atendimento para todos.
@@ -722,7 +722,7 @@ export default function SecretariaIA() {
           O aviso aponta para "Assumir a conversa" porque é ali que mora o erro
           caro: um paciente irritado, e alguém desliga o atendimento de todos
           para resolver o caso de um. */}
-      <div style={cartao}>
+      <div className="cartao" style={cartao}>
         <div style={titulo}>Ligar e desligar a {nomeAgente}</div>
         <p style={{ ...legenda, marginBottom: 12 }}>Com ela desligada:</p>
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar, { TopoMobile } from './Sidebar'
 import AvisoWhatsAppCaiu from './AvisoWhatsAppCaiu'
 import { supabase } from '../lib/supabase'
@@ -64,6 +64,12 @@ export default function Layout() {
   const [gavetaAberta, setGavetaAberta] = useState(false)
   const fecharGaveta = useCallback(() => setGavetaAberta(false), [])
 
+  // Dentro de uma conversa, no celular, a faixa do topo sai: o cabeçalho da
+  // conversa já tem a seta de voltar, e 56px a mais de mensagem valem mais que
+  // o menu — que volta junto com a lista.
+  const { pathname, search } = useLocation()
+  const dentroDeUmaConversa = pathname === '/conversas' && new URLSearchParams(search).has('lead')
+
   useEffect(() => {
     let vivo = true
     supabase
@@ -94,7 +100,7 @@ export default function Layout() {
     }}>
       <AvisoWhatsAppCaiu />
 
-      {pequena && <TopoMobile onAbrirMenu={() => setGavetaAberta(true)} />}
+      {pequena && !dentroDeUmaConversa && <TopoMobile onAbrirMenu={() => setGavetaAberta(true)} />}
 
       {/* ⚠️ `minHeight: 0` é o que faz o `<main>` rolar por dentro em vez de
           esticar a linha. Sem ele, a faixa empurraria a barra lateral e o

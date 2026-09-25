@@ -44,7 +44,7 @@ function fmtCurrency(v: number | null) {
 ────────────────────────────────────────────── */
 function SectionCard({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
+    <div className="cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #EDF2F4' }}>
         <div style={{ width: 32, height: 32, borderRadius: 8, background: MARCA_SUAVE, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Icon size={16} style={{ color: MARCA }} />
@@ -438,7 +438,7 @@ export default function LeadDetail() {
       </button>
 
       {/* Header */}
-      <div className="fade-in-1" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
+      <div className="fade-in-1 cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: '#16232B', margin: 0 }}>{lead.nome_lead ?? 'Sem nome'}</h1>
@@ -476,7 +476,7 @@ export default function LeadDetail() {
 
       {/* Histórico de Agendamentos */}
       <div className="fade-in-2">
-        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
+        <div className="cartao" style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', padding: '22px 26px', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #EDF2F4' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: MARCA_SUAVE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -548,9 +548,9 @@ export default function LeadDetail() {
           {/* O RESUMO CONTINUA SÓ LEITURA: quem escreve é a Letícia, pela
               ferramenta `atualizar_ficha`. Editá-lo aqui seria apagar na mão o
               que ela vai reescrever na próxima mensagem. */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12.5, color: '#6B818C', minWidth: 180, flexShrink: 0, paddingTop: 2 }}>Resumo da Conversa</span>
-            <span style={{ fontSize: 13.5, color: '#16232B', lineHeight: 1.6 }}>{lead.resumo_conversa || '—'}</span>
+            <span style={{ fontSize: 13.5, color: '#16232B', lineHeight: 1.6, flex: 1, minWidth: 240 }}>{lead.resumo_conversa || '—'}</span>
           </div>
 
           <div style={{ borderTop: '1px solid #EDF2F4', margin: '18px 0' }} />

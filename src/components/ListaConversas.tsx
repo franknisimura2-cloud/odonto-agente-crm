@@ -36,9 +36,15 @@ interface Props {
   selecionada: string | null
   onSelecionar: (leadId: string) => void
   carregando: boolean
+  /**
+   * No celular a lista é a tela inteira (as outras colunas aparecem uma por
+   * vez, ver `Conversas`): largura toda, letra maior para o dedo, e sem o
+   * título, que a faixa do topo já mostra.
+   */
+  celular?: boolean
 }
 
-export default function ListaConversas({ conversas, selecionada, onSelecionar, carregando }: Props) {
+export default function ListaConversas({ conversas, selecionada, onSelecionar, carregando, celular }: Props) {
   const { nome: nomeAgente, porExtenso: agentePorExtenso } = useAgente()
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState<Filtro>('todas')
@@ -75,18 +81,23 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
 
   return (
     <div style={{
-      width: 330, flexShrink: 0, borderRight: '1px solid #DCE6EA', background: '#fff',
+      width: celular ? '100%' : 330, flexShrink: 0,
+      borderRight: celular ? 'none' : '1px solid #DCE6EA', background: '#fff',
       display: 'flex', flexDirection: 'column', height: '100%',
     }}>
 
       {/* Cabeçalho, busca e filtros */}
-      <div style={{ padding: '18px 18px 12px', borderBottom: '1px solid #EDF2F4', flexShrink: 0 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: '#16232B', margin: '0 0 3px' }}>
-          Conversas
-        </h1>
-        <p style={{ fontSize: 12, color: '#6B818C', margin: '0 0 13px' }}>
-          O WhatsApp da empresa, com o que a {agentePorExtenso} respondeu.
-        </p>
+      <div style={{ padding: celular ? '12px 14px 10px' : '18px 18px 12px', borderBottom: '1px solid #EDF2F4', flexShrink: 0 }}>
+        {!celular && (
+          <>
+            <h1 style={{ fontSize: 18, fontWeight: 800, color: '#16232B', margin: '0 0 3px' }}>
+              Conversas
+            </h1>
+            <p style={{ fontSize: 12, color: '#6B818C', margin: '0 0 13px' }}>
+              O WhatsApp da empresa, com o que a {agentePorExtenso} respondeu.
+            </p>
+          </>
+        )}
 
         <div style={{ position: 'relative' }}>
           <Search size={14} color="#6B818C"
@@ -114,8 +125,8 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
                 onClick={() => setFiltro(f)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '4px 9px', borderRadius: 20, cursor: 'pointer',
-                  fontSize: 11.5, fontWeight: 600, fontFamily: FONTE,
+                  padding: celular ? '7px 12px' : '4px 9px', borderRadius: 20, cursor: 'pointer',
+                  fontSize: celular ? 13 : 11.5, fontWeight: 600, fontFamily: FONTE,
                   border: `1px solid ${ativo ? MARCA : '#DCE6EA'}`,
                   background: ativo ? MARCA : '#fff',
                   color: ativo ? '#fff' : '#6B818C',
@@ -173,7 +184,7 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
               onClick={() => onSelecionar(c.lead_id)}
               style={{
                 width: '100%', display: 'flex', gap: 11, alignItems: 'flex-start',
-                padding: '12px 16px', border: 'none', borderBottom: '1px solid #EDF2F4',
+                padding: celular ? '13px 14px' : '12px 16px', border: 'none', borderBottom: '1px solid #EDF2F4',
                 background: ativa ? MARCA_SUAVE : 'transparent', cursor: 'pointer',
                 textAlign: 'left', fontFamily: FONTE,
                 borderLeft: ativa ? `3px solid ${MARCA}` : '3px solid transparent',
@@ -183,7 +194,7 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
             >
               {/* Inicial */}
               <div style={{
-                width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                width: celular ? 44 : 38, height: celular ? 44 : 38, borderRadius: '50%', flexShrink: 0,
                 background: ativa ? MARCA : MARCA_SUAVE,
                 color: ativa ? '#fff' : MARCA,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -195,19 +206,19 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <span style={{
-                    fontSize: 13, fontWeight: naoLidas > 0 ? 800 : 700, color: '#16232B',
+                    fontSize: celular ? 15 : 13, fontWeight: naoLidas > 0 ? 800 : 700, color: '#16232B',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }}>
                     {nome}
                   </span>
-                  <span style={{ fontSize: 10.5, color: '#6B818C', flexShrink: 0 }}>
+                  <span style={{ fontSize: celular ? 12 : 10.5, color: '#6B818C', flexShrink: 0 }}>
                     {quandoCurto(c.ultima_em)}
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 3 }}>
                   <span style={{
-                    fontSize: 11.5, color: naoLidas > 0 ? '#16232B' : '#6B818C',
+                    fontSize: celular ? 13.5 : 11.5, color: naoLidas > 0 ? '#16232B' : '#6B818C',
                     fontWeight: naoLidas > 0 ? 600 : 400,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }}>
