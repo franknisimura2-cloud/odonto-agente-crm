@@ -32,7 +32,7 @@ body {
 
 #root {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 @keyframes fadeInUp {
@@ -55,3 +55,61 @@ body {
 .fade-in-4 { animation: fadeInUp 0.4s ease 0.20s forwards; opacity: 0; }
 .fade-in-5 { animation: fadeInUp 0.4s ease 0.25s forwards; opacity: 0; }
 .fade-in-6 { animation: fadeInUp 0.4s ease 0.30s forwards; opacity: 0; }
+
+/* ===========================================================================
+   CELULAR — até 767px (o mesmo número de LARGURA_CELULAR, em
+   src/lib/useTelaPequena.ts; mudou um, mude o outro)
+
+   O estilo do projeto é inline, e inline não tem media query. Por isso estas
+   regras usam `!important`: é o único jeito de uma folha de estilo vencer um
+   `style={{ }}`. Elas só AJUSTAM medidas; o que muda de layout (a barra que
+   vira gaveta, a tela que troca de versão) é decidido no componente, com o
+   useTelaPequena.
+
+   Cada classe daqui é marcada à mão no componente — nenhuma regra alcança
+   elemento que não pediu.
+   =========================================================================== */
+@media (max-width: 767px) {
+
+  /* O iPhone dá zoom na tela inteira ao tocar num campo com letra menor que
+     16px — e não volta sozinho. Os campos do sistema usam 13 a 14px. */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* O contêiner de cada página: 32–36px de margem lateral comem um quinto da
+     tela de um celular. Só o topo e os lados: o pé fica como a página quis. */
+  .pagina {
+    padding-top: 18px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* O fundo escuro de todo modal: 24px de respiro é demais em volta de uma
+     caixa que já não cabe. */
+  .modal-fundo {
+    padding: 12px !important;
+  }
+
+  /* Modal de FORMULÁRIO vira tela cheia. Uma caixa flutuante com campos, no
+     celular, deixa o teclado cobrir metade dela e o botão Salvar fora de
+     alcance. A caixa é sempre o primeiro filho do fundo. As confirmações
+     curtas (apagar, o detalhe do agendamento) ficam como caixa. */
+  .modal-cheio {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+  .modal-cheio > div {
+    max-width: none !important;
+    width: 100% !important;
+    min-height: 100dvh;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+  }
+}

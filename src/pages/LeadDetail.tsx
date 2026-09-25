@@ -130,7 +130,7 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
   const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid #DCE6EA', fontSize: 13.5, fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#16232B', outline: 'none', background: '#fff', boxSizing: 'border-box' }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    <div className="modal-fundo modal-cheio" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DCE6EA', width: '100%', maxWidth: 480, padding: '28px 28px 24px', boxShadow: '0 8px 48px rgba(0,0,0,0.12)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
@@ -407,7 +407,7 @@ export default function LeadDetail() {
 
   if (!lead) {
     return (
-      <div style={{ padding: '32px 36px' }}>
+      <div className="pagina" style={{ padding: '32px 36px' }}>
         <p style={{ color: '#6B818C' }}>Lead não encontrado.</p>
         <button onClick={() => navigate('/leads')} style={{ marginTop: 12, background: 'none', border: 'none', color: MARCA, cursor: 'pointer', fontWeight: 600, fontSize: 13.5, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>← Voltar</button>
       </div>
@@ -429,7 +429,7 @@ export default function LeadDetail() {
     valorPago !== (lead.valor_pago_acumulado !== null && lead.valor_pago_acumulado !== undefined ? String(lead.valor_pago_acumulado) : '')
 
   return (
-    <div style={{ padding: '28px 36px', maxWidth: 900, margin: '0 auto' }}>
+    <div className="pagina" style={{ padding: '28px 36px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Back button */}
       <button className="fade-in" onClick={() => navigate(isPaciente(lead.status) ? '/clientes' : '/leads')}

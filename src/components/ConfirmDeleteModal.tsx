@@ -30,6 +30,7 @@ export default function ConfirmDeleteModal({
   return (
     <ModalPortal>
       <div
+        className="modal-fundo"
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       >

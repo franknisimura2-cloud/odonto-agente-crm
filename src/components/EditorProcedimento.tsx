@@ -126,6 +126,7 @@ export default function EditorProcedimento({ procedimento, porta, onSalvo, onFec
   return (
     <ModalPortal>
       <div
+        className="modal-fundo modal-cheio"
         style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,

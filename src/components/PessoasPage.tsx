@@ -310,6 +310,7 @@ function NewLeadModal({ titulo, onClose, onSaved }: NewLeadModalProps) {
 
   return (
     <div
+      className="modal-fundo modal-cheio"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -719,7 +720,7 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
   }
 
   return (
-    <div style={{ padding: '32px 36px' }}>
+    <div className="pagina" style={{ padding: '32px 36px' }}>
 
       {/* Header */}
       <div className="fade-in-1" style={{ marginBottom: 22, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>

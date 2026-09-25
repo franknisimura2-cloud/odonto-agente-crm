@@ -582,7 +582,7 @@ declaradas localmente no próprio componente.
 
 ### A casca tem altura fixa, e quem rola é o conteúdo
 
-[`Layout.tsx`](src/components/Layout.tsx) usa `height: 100vh` com
+[`Layout.tsx`](src/components/Layout.tsx) usa `height: 100dvh` com
 `overflow: hidden`, e o `<main>` é que rola. **Não troque por `minHeight`.**
 
 Com `minHeight`, o container cresce junto com a página e a barra lateral estica
@@ -593,6 +593,38 @@ rolando até o fim. Foi exatamente o que aconteceu.
 
 Consequência para páginas novas: use `height: '100%'`, não `100vh` — o `main`
 já é do tamanho da janela, e `100vh` dentro dele ignora qualquer margem futura.
+
+É `dvh`, e não `vh`, por causa do celular: lá `100vh` é a altura com a barra
+de endereço escondida, e com ela à vista o pé da casca fica atrás da barra do
+navegador.
+
+### Celular: layout no componente, medida no CSS
+
+Até **767px** é celular (`LARGURA_CELULAR`, em
+[`useTelaPequena.ts`](src/lib/useTelaPequena.ts)). Estilo inline não enxerga
+media query, então a regra se divide em duas:
+
+| O que muda | Onde | Como |
+|---|---|---|
+| **Layout** — a barra vira gaveta, uma tela troca de versão | No componente | `useTelaPequena()` |
+| **Medida** — margem, fonte, modal em tela cheia | No [`index.css`](src/index.css), no bloco `@media (max-width: 767px)` | Uma classe marcada à mão no elemento, com `!important` para vencer o inline |
+
+As classes que existem hoje:
+
+| Classe | Onde vai | O que faz no celular |
+|---|---|---|
+| `pagina` | O contêiner de cada página (o `padding: '32px 36px'`) | Margem de 16px nos lados |
+| `modal-fundo` | O fundo escuro de **todo** modal | Respiro de 12px em volta da caixa |
+| `modal-cheio` | Junto de `modal-fundo`, em modal de **formulário** | A caixa (o primeiro filho) ocupa a tela inteira |
+
+E, sem classe, todo `input`, `select` e `textarea` sobe para 16px: abaixo
+disso o iPhone dá zoom na tela ao tocar no campo.
+
+**Página ou modal novo nasce com a classe.** Sem ela, ele funciona no
+computador e sai apertado no celular — e ninguém percebe até abrir num.
+
+O computador **não muda**: nenhuma regra vale acima de 767px. No tablet
+(até 1023px) a barra lateral só nasce recolhida.
 
 ### Modal vive dentro de `ModalPortal`
 
@@ -1703,7 +1735,7 @@ que aparece a cada piscada é uma faixa que a equipe aprende a ignorar.
 
 > ⚠️ **`minHeight: 0` na linha que contém a barra lateral.** A faixa entrou como
 > irmã dela dentro de um flex em coluna; sem isso, ela empurraria a barra e o
-> conteúdo para fora da janela — o mesmo defeito que o `height: 100vh` do
+> conteúdo para fora da janela — o mesmo defeito que o `height: 100dvh` do
 > Layout existe para evitar.
 
 ### Apagar uma pessoa: dois cartões, uma regra

@@ -335,7 +335,7 @@ export default function SecretariaIA() {
   const situacao = situacaoDoAgente()
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 900, margin: '0 auto' }}>
+    <div className="pagina" style={{ padding: '32px 36px', maxWidth: 900, margin: '0 auto' }}>
 
       <div className="fade-in-1" style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#16232B', margin: 0 }}>{AGENTE_PAGINA}</h1>

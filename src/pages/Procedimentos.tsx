@@ -174,7 +174,7 @@ export default function Procedimentos() {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#6B818C' }}>Carregando...</div>
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1080, margin: '0 auto' }}>
+    <div className="pagina" style={{ padding: '32px 36px', maxWidth: 1080, margin: '0 auto' }}>
 
       {/* Cabeçalho */}
       <div className="fade-in-1" style={{ marginBottom: 22, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>

@@ -574,7 +574,7 @@ export default function CRM() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* Page header */}
-      <div style={{ padding: '28px 32px 20px', flexShrink: 0 }}>
+      <div className="pagina" style={{ padding: '28px 32px 20px', flexShrink: 0 }}>
         <div className="fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: '#16232B', margin: 0 }}>CRM</h1>

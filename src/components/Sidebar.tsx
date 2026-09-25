@@ -17,10 +17,13 @@ import {
   ChevronUp,
   CircleDot,
   LogOut,
+  Menu,
+  X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { AGENTE_PAGINA } from '../lib/agente'
 import { NOME_DO_SISTEMA, MARCA_SUAVE, MARCA } from '../lib/marca'
+import { LARGURA_TABLET } from '../lib/useTelaPequena'
 import type { Usuario, ConfiguracoesClinica } from '../types'
 
 /**
@@ -61,8 +64,91 @@ function fundoDoItem(ativo: boolean, sobMouse: boolean): string {
   return sobMouse ? '#EDF2F4' : 'transparent'
 }
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false)
+/** O nome da tela aberta, para o topo do celular — que não tem a barra à vista. */
+function tituloDaTela(pathname: string): string {
+  if (pathname.startsWith('/leads/')) return 'Contato'
+  const item = [...NAV_ITEMS, ...MENU_USUARIO].find(({ to }) =>
+    to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`),
+  )
+  return item?.label ?? NOME_DO_SISTEMA
+}
+
+/**
+ * No celular, a barra lateral não cabe: ela vira uma **gaveta**, que desliza da
+ * esquerda e cobre o conteúdo. Quem abre e fecha é o [`Layout`](Layout.tsx) —
+ * este é o estado que ele passa.
+ */
+interface Gaveta {
+  aberta: boolean
+  onFechar: () => void
+}
+
+/**
+ * A faixa de cima no celular: o botão da gaveta e o nome da tela.
+ *
+ * Fica no fluxo, e não fixa por cima: o `<main>` é quem rola (ver o Layout), e
+ * a faixa acima dele nunca sai do lugar — sem `position: fixed`, sem conteúdo
+ * escondido atrás dela.
+ */
+export function TopoMobile({ onAbrirMenu }: { onAbrirMenu: () => void }) {
+  const { pathname } = useLocation()
+  return (
+    <header
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        height: 56,
+        padding: '0 12px',
+        background: '#fff',
+        borderBottom: '1px solid #DCE6EA',
+        flexShrink: 0,
+      }}
+    >
+      <button
+        onClick={onAbrirMenu}
+        aria-label="Abrir o menu"
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 10,
+          border: 'none',
+          background: 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <Menu size={22} color="#16232B" />
+      </button>
+      <span
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: '#16232B',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {tituloDaTela(pathname)}
+      </span>
+    </header>
+  )
+}
+
+export default function Sidebar({ gaveta }: { gaveta?: Gaveta }) {
+  // No tablet em pé (768–1023px) a barra aberta come um quarto da tela: ela
+  // já nasce recolhida, e o botão continua lá para quem quiser abrir. Lido uma
+  // vez só, na montagem — girar o tablet não pode desfazer a escolha de quem
+  // já abriu ou fechou na mão.
+  const [recolhidaPelaPessoa, setCollapsed] = useState(
+    () => window.matchMedia(`(max-width: ${LARGURA_TABLET}px)`).matches,
+  )
+  // Na gaveta, sempre aberta: ela já está escondida fora da tela quando fechada,
+  // e recolhida ela seria uma coluna de ícones sem nome num celular.
+  const collapsed = gaveta ? false : recolhidaPelaPessoa
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [clinica, setClinica] = useState<ConfiguracoesClinica | null>(null)
   const navigate = useNavigate()
@@ -93,6 +179,15 @@ export default function Sidebar() {
       document.removeEventListener('keydown', esc)
     }
   }, [menuAberto])
+
+  // Esc fecha a gaveta — quem usa o celular com teclado, ou a janela estreita.
+  useEffect(() => {
+    if (!gaveta?.aberta) return
+    const onFechar = gaveta.onFechar
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onFechar() }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [gaveta?.aberta, gaveta?.onFechar])
 
   useEffect(() => {
     async function loadData() {
@@ -150,6 +245,7 @@ export default function Sidebar() {
 
   return (
     <aside
+      aria-hidden={gaveta ? !gaveta.aberta : undefined}
       style={{
         width: collapsed ? 64 : 220,
         transition: 'width 0.25s ease',
@@ -163,6 +259,26 @@ export default function Sidebar() {
         flexShrink: 0,
         position: 'relative',
         zIndex: 10,
+        // Gaveta: fixa na janela, fora dela quando fechada. `visibility` junto
+        // do deslize, e não só o `transform`: sem ele, o Tab do teclado ainda
+        // passaria pelos links de uma barra que ninguém vê.
+        ...(gaveta && {
+          position: 'fixed',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          width: 280,
+          maxWidth: '85vw',
+          height: 'auto',
+          zIndex: 90,
+          transform: gaveta.aberta ? 'translateX(0)' : 'translateX(-100%)',
+          visibility: gaveta.aberta ? 'visible' : 'hidden',
+          transition: gaveta.aberta
+            ? 'transform 0.25s ease'
+            : 'transform 0.25s ease, visibility 0s linear 0.25s',
+          boxShadow: gaveta.aberta ? '0 0 40px rgba(0,0,0,0.18)' : 'none',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }),
       }}
     >
       {/* Header: a logo em cima, o nome embaixo.
@@ -233,9 +349,33 @@ export default function Sidebar() {
           </span>
         )}
 
+        {/* Na gaveta, o botão do canto fecha em vez de recolher. */}
+        {gaveta && (
+          <button
+            onClick={gaveta.onFechar}
+            aria-label="Fechar o menu"
+            style={{
+              position: 'absolute',
+              right: 6,
+              top: 6,
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              border: 'none',
+              background: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={20} color="#6B818C" />
+          </button>
+        )}
+
         {/* Absoluto nos dois estados: com a logo centralizada, um botão no
             fluxo puxaria o conteúdo para o lado. */}
-        <button
+        {!gaveta && <button
           onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expandir a barra' : 'Recolher a barra'}
           style={{
@@ -256,7 +396,7 @@ export default function Sidebar() {
           }}
         >
           {collapsed ? <ChevronRight size={13} color="#6B818C" /> : <ChevronLeft size={13} color="#6B818C" />}
-        </button>
+        </button>}
       </div>
 
       {/* Navigation */}
@@ -266,6 +406,9 @@ export default function Sidebar() {
             key={to}
             to={to}
             end={end}
+            // Na gaveta, escolher uma tela fecha: ela cobre o conteúdo que a
+            // pessoa acabou de pedir.
+            onClick={gaveta?.onFechar}
             onMouseEnter={() => { setSobMouse(to) }}
             onMouseLeave={() => { setSobMouse((atual) => (atual === to ? null : atual)) }}
             style={({ isActive }) => ({
@@ -332,7 +475,7 @@ export default function Sidebar() {
             {MENU_USUARIO.map(({ to, label, icon: Icon }) => (
               <button
                 key={to}
-                onClick={() => { setMenuAberto(false); navigate(to) }}
+                onClick={() => { setMenuAberto(false); gaveta?.onFechar(); navigate(to) }}
                 style={{
                   width: '100%',
                   display: 'flex',

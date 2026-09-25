@@ -802,7 +802,7 @@ export default function Configuracoes() {
   }, [])
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 900, margin: '0 auto' }}>
+    <div className="pagina" style={{ padding: '32px 36px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Page header */}
       <div className="fade-in-1" style={{ marginBottom: 24 }}>

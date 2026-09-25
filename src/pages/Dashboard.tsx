@@ -377,7 +377,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1300, margin: '0 auto' }}>
+    <div className="pagina" style={{ padding: '32px 36px', maxWidth: 1300, margin: '0 auto' }}>
 
       {/* Header */}
       <div className="fade-in-1" style={{ marginBottom: 28 }}>

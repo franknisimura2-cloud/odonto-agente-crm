@@ -203,7 +203,7 @@ function ModalProfissional({
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflowY: 'auto' }}
+    <div className="modal-fundo modal-cheio" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflowY: 'auto' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #DCE6EA', width: '100%', maxWidth: 560, padding: '28px 28px 24px', boxShadow: '0 8px 48px rgba(0,0,0,0.12)', margin: 'auto' }}>
 
@@ -452,7 +452,7 @@ export default function Profissionais() {
     .map((i) => i.profissional.cor)
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 900, margin: '0 auto' }}>
+    <div className="pagina" style={{ padding: '32px 36px', maxWidth: 900, margin: '0 auto' }}>
 
       {/* Header */}
       <div className="fade-in-1" style={{ marginBottom: 22, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
