@@ -112,6 +112,13 @@ num `update`. Não ligue a Letícia antes dessa leitura.
 Estética, fisioterapia, nutrição, psicologia, medicina, veterinária. As regras
 de saúde do kit servem; o que é de dente, não.
 
+> **Estética já tem kit:** [`kits/clinica-estetica/`](kits/clinica-estetica/),
+> montado nesta instalação a partir do odontológico — 10 procedimentos, a
+> Avaliação Estética como porta de entrada, a urgência de reação a
+> procedimento (e o SAMU para falta de ar) e o marcador
+> *"Sem relação com estética:"*. Serve de ponto de partida para outra clínica
+> de estética; os textos e os preços são os desta.
+
 ### B.1. As perguntas
 
 Faça as da seção 2 do [`ADAPTAR-OUTROS-NICHOS.md`](ADAPTAR-OUTROS-NICHOS.md) —
