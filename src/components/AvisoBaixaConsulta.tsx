@@ -110,7 +110,9 @@ export default function AvisoBaixaConsulta({ leadId, onBaixa, compacto = false }
               padding: compacto ? '8px 10px' : '9px 12px',
             }}>
 
-              <div style={{ minWidth: 0, flex: 1 }}>
+              {/* 160px de piso: abaixo disso os botões descem para a linha de
+                  baixo, em vez de espremer o nome numa coluna de uma palavra. */}
+              <div style={{ minWidth: 160, flex: 1 }}>
                 {/* No painel de uma pessoa só, repetir o nome dela seria ruído:
                     ele já está no cabeçalho, dois centímetros acima. */}
                 {!leadId && (

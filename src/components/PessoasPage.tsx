@@ -19,6 +19,7 @@ import {
 } from '../lib/periodo'
 import type { LeadClinica, LeadStatus, Profissional } from '../types'
 import { MARCA, MARCA_SUAVE, MARCA_CLARO, MARCA_ESCURO, corDoSistemaAtual } from '../lib/marca'
+import { useTelaPequena } from '../lib/useTelaPequena'
 
 /** '#1E6E8C' → [30, 110, 140], para o jsPDF. */
 function rgbDe(hex: string): [number, number, number] {
@@ -575,6 +576,9 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
   const cfg = CONFIG[mode]
   const Icone = cfg.icone
   const navigate = useNavigate()
+  // No celular a tabela de seis colunas vira cartões, e as duas frases de
+  // explicação do cabeçalho saem: quem abre Leads no celular já sabe o que é.
+  const pequena = useTelaPequena()
 
   const [allLeads, setAllLeads] = useState<LeadClinica[]>([])
   const [loading, setLoading] = useState(true)
@@ -736,13 +740,17 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
           </div>
 
           {/* Mesmo tamanho da copy do Dashboard */}
-          <p style={{ fontSize: 16.5, fontWeight: 500, color: '#3A5560', marginTop: 10, marginBottom: 0, lineHeight: 1.45 }}>
-            {cfg.subtitulo}
-          </p>
+          {!pequena && (
+            <>
+              <p style={{ fontSize: 16.5, fontWeight: 500, color: '#3A5560', marginTop: 10, marginBottom: 0, lineHeight: 1.45 }}>
+                {cfg.subtitulo}
+              </p>
 
-          <p style={{ fontSize: 13, color: '#6B818C', marginTop: 8, marginBottom: 0, lineHeight: 1.6 }}>
-            {cfg.explicacao}
-          </p>
+              <p style={{ fontSize: 13, color: '#6B818C', marginTop: 8, marginBottom: 0, lineHeight: 1.6 }}>
+                {cfg.explicacao}
+              </p>
+            </>
+          )}
 
           <button
             onClick={() => navigate(cfg.outraPagina.rota)}
@@ -862,6 +870,36 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
         {displayed.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B818C', fontSize: 14 }}>
             {search ? 'Nenhum resultado para a busca.' : cfg.vazio}
+          </div>
+        ) : pequena ? (
+          // Um cartão por pessoa, e o cartão inteiro abre a ficha — no dedo, um
+          // botão "Detalhes" no canto seria o alvo menor da linha.
+          <div>
+            {displayed.map((lead) => (
+              <button key={lead.id} onClick={() => navigate(`/leads/${lead.id}`)}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '13px 14px',
+                  border: 'none', borderBottom: '1px solid #EDF2F4', background: '#fff',
+                  cursor: 'pointer', fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#16232B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {lead.nome_lead ?? '—'}
+                  </span>
+                  <StatusBadge status={lead.status} />
+                </div>
+                <div style={{ fontSize: 12.5, color: '#6B818C', marginTop: 3 }}>
+                  {formatarParaExibicao(lead.whatsapp_lead)}
+                  {lead.procedimento_interesse && <> · {lead.procedimento_interesse}</>}
+                </div>
+                <div style={{ fontSize: 12, color: '#9AAEB6', marginTop: 4 }}>
+                  Início {fmtDate(lead.inicio_atendimento)}
+                  {' · '}{lead[cfg.colunaData.campo]
+                    ? `${cfg.colunaData.titulo} ${fmtDate(lead[cfg.colunaData.campo])}`
+                    : cfg.colunaData.vazio}
+                </div>
+              </button>
+            ))}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

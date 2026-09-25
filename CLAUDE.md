@@ -648,6 +648,13 @@ empilham, o de **serviços vira lista** (nome inteiro em cima e as duas barras
 embaixo, na mesma escala — os nomes do catálogo não cabem ao lado de uma barra
 em 390px) e os próximos agendamentos viram linhas em vez de tabela.
 
+**CRM, no celular, é o funil para ler** (`FunilCelular`, dentro do
+[`CRM.tsx`](src/pages/CRM.tsx)): cada etapa numa linha, com a quantidade e uma
+barra na escala da maior, nos mesmos dois trechos do quadro. Tocar abre quem
+está ali, e o "ver todos" leva à lista com o mesmo `?etapa=`. **Não há
+arrastar no celular, de propósito**: mover de etapa continua no computador e
+na ficha. **Leads e Clientes** viram cartões (o cartão inteiro abre a ficha).
+
 ### Modal vive dentro de `ModalPortal`
 
 `position: fixed` promete "em relação à janela" — e quebra a promessa se

@@ -17,7 +17,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useDroppable } from '@dnd-kit/core'
-import { Copy, Check, GripVertical, Inbox, ArrowRight, TriangleAlert } from 'lucide-react'
+import { Copy, Check, GripVertical, Inbox, ArrowRight, TriangleAlert, ChevronDown } from 'lucide-react'
+import { useTelaPequena } from '../lib/useTelaPequena'
+import { formatarParaExibicao } from '../lib/telefones'
 import { supabase } from '../lib/supabase'
 import { isPaciente } from '../lib/pessoas'
 import { ROTULO_LEAD } from '../lib/statusLead'
@@ -399,7 +401,128 @@ function KanbanColumn({ cfg, leads, isDraggingOver, verTodos }: KanbanColumnProp
 /* ──────────────────────────────────────────────
    Main CRM Page
 ────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────
+   O funil no celular — para LER, não para arrastar.
+
+   No celular quem abre o CRM é a dona, e a pergunta dela é "quantos estão em
+   cada etapa?", não "vou mover este card". Arrastar no dedo, entre nove
+   colunas de 260px que não cabem na tela, é a parte mais frágil que o quadro
+   teria — e mover alguém de etapa continua existindo no computador e na ficha
+   (o status se edita lá).
+
+   Cada etapa é uma linha com a quantidade e uma barra do tamanho dela (na
+   escala da maior etapa), nos mesmos dois trechos do quadro: o caminho que dá
+   certo, e quem saiu dele. Tocar abre quem está ali.
+────────────────────────────────────────────── */
+
+/** Quantos nomes a etapa aberta mostra antes do "ver todos". */
+const NOMES_NO_CELULAR = 15
+
+function FunilCelular({ grouped, verTodos }: {
+  grouped: Record<LeadStatus, LeadClinica[]>
+  verTodos: (status: LeadStatus) => string
+}) {
+  const navigate = useNavigate()
+  const [aberta, setAberta] = useState<LeadStatus | null>(null)
+  const maior = Math.max(1, ...COLUMNS.map((c) => grouped[c.status].length))
+  const total = COLUMNS.reduce((s, c) => s + grouped[c.status].length, 0)
+
+  // "Compareceu" tem texto branco num fundo escuro: para a barra e a bolinha,
+  // a cor que identifica a etapa é o fundo.
+  const corDa = (cfg: ColumnConfig) => (cfg.color === '#fff' ? cfg.bg : cfg.color)
+
+  const linha = (cfg: ColumnConfig) => {
+    const pessoas = grouped[cfg.status]
+    const estaAberta = aberta === cfg.status
+    const cor = corDa(cfg)
+    return (
+      <div key={cfg.status} style={{ borderBottom: '1px solid #EDF2F4' }}>
+        <button
+          onClick={() => setAberta(estaAberta ? null : cfg.status)}
+          aria-expanded={estaAberta}
+          style={{
+            width: '100%', display: 'block', textAlign: 'left', padding: '12px 14px',
+            border: 'none', background: estaAberta ? '#F7FAFB' : '#fff', cursor: 'pointer',
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: cor, flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600, color: '#16232B' }}>{cfg.label}</span>
+            <span style={{ fontSize: 16, fontWeight: 800, color: '#16232B' }}>{pessoas.length}</span>
+            <ChevronDown size={16} color="#9AAEB6"
+              style={{ transform: estaAberta ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+          </div>
+          <div style={{ height: 6, background: '#F2F6F7', borderRadius: 3, marginTop: 8, marginLeft: 18, overflow: 'hidden' }}>
+            <div style={{ width: `${(pessoas.length / maior) * 100}%`, height: '100%', background: cor, borderRadius: 3 }} />
+          </div>
+        </button>
+
+        {estaAberta && (
+          <div style={{ background: '#F7FAFB', padding: '0 14px 10px 32px' }}>
+            {pessoas.length === 0 ? (
+              <div style={{ fontSize: 13, color: '#6B818C', padding: '6px 0 4px' }}>Ninguém nesta etapa.</div>
+            ) : (
+              <>
+                {pessoas.slice(0, NOMES_NO_CELULAR).map((l) => (
+                  <button key={l.id} onClick={() => navigate(`/leads/${l.id}`)}
+                    style={{
+                      width: '100%', display: 'flex', justifyContent: 'space-between', gap: 10,
+                      padding: '9px 0', border: 'none', borderTop: '1px solid #EDF2F4',
+                      background: 'transparent', cursor: 'pointer', textAlign: 'left',
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    }}>
+                    <span style={{ fontSize: 14, color: '#16232B', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {l.nome_lead?.trim() || formatarParaExibicao(l.whatsapp_lead) || 'Sem nome'}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#9AAEB6', flexShrink: 0 }}>
+                      {formatLastContact(l.minutos_ultima_mensagem)}
+                    </span>
+                  </button>
+                ))}
+                {/* O "ver todos" é sempre um caminho, mesmo com poucos: a
+                    lista tem busca e exporta. */}
+                <button onClick={() => navigate(verTodos(cfg.status))}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, padding: '6px 0',
+                    border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                    color: MARCA, fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  }}>
+                  {pessoas.length > NOMES_NO_CELULAR
+                    ? `Ver todos os ${pessoas.length}`
+                    : 'Abrir na lista'} <ArrowRight size={13} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const trecho = (titulo: string, colunas: ColumnConfig[]) => (
+    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #DCE6EA', overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ padding: '11px 14px', fontSize: 12, fontWeight: 700, color: '#6B818C', textTransform: 'uppercase', letterSpacing: 0.3, borderBottom: '1px solid #EDF2F4' }}>
+        {titulo}
+      </div>
+      {colunas.map(linha)}
+    </div>
+  )
+
+  return (
+    <div>
+      <div style={{ fontSize: 13.5, color: '#3A5560', marginBottom: 12 }}>
+        <strong style={{ color: '#16232B' }}>{total}</strong> {total === 1 ? 'pessoa' : 'pessoas'} no período.
+        {' '}Para mover alguém de etapa, abra a ficha.
+      </div>
+      {/* Os dois trechos do quadro — a ordem de COLUMNS já é essa. */}
+      {trecho('O caminho', COLUMNS.slice(0, 5))}
+      {trecho('Quem saiu do caminho', COLUMNS.slice(5))}
+    </div>
+  )
+}
+
 export default function CRM() {
+  const pequena = useTelaPequena()
   const [leads, setLeads] = useState<LeadClinica[]>([])
   const [loading, setLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -567,6 +690,30 @@ export default function CRM() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
         <div style={{ width: 32, height: 32, border: `3px solid ${MARCA_SUAVE}`, borderTopColor: MARCA, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
+  if (pequena) {
+    return (
+      <div className="pagina" style={{ padding: '32px 36px' }}>
+        <div style={{ marginBottom: 14 }}>
+          <FiltroPeriodo periodo={periodo} onPeriodo={setPeriodo} faixa={faixa} onFaixa={setFaixa} />
+        </div>
+        {totalNoBanco > leads.length && (
+          <div style={{
+            marginBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 8,
+            background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10,
+            padding: '10px 13px', fontSize: 12.5, color: '#B45309', lineHeight: 1.55,
+          }}>
+            <TriangleAlert size={14} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>
+              Mostrando os <strong>{leads.length}</strong> mais recentes de <strong>{totalNoBanco}</strong>.
+              Escolha um período menor para ver o resto.
+            </span>
+          </div>
+        )}
+        <FunilCelular grouped={grouped} verTodos={(s) => linkDaEtapa(s, periodo, faixa)} />
       </div>
     )
   }
