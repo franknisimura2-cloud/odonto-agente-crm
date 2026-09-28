@@ -342,13 +342,18 @@ export default function LeadDetail() {
 
     setSavingFicha(true); setFichaError('')
     const valorNum = valorPago ? parseFloat(valorPago.replace(',', '.')) : null
+    // O VALOR PAGO NÃO VAI NO UPDATE DA FICHA (migração 0031). A coluna saiu
+    // do alcance da equipe, e na visão ela é uma função — escrever nela é erro.
+    // Ele é gravado à parte, por `definir_valor_pago`, que confere a
+    // permissão `valores`. E só quando mudou: quem não vê o valor recebe nulo
+    // da visão, e reenviar esse nulo apagaria o valor de verdade.
+    const valorMudou = valorNum !== (lead.valor_pago_acumulado ?? null)
     const campos: Record<string, unknown> = {
       nome_lead: nome.trim() || null,
       // O array é que se grava. `procedimento_interesse` é calculada na view —
       // escrever nela é escrever numa expressão.
       procedimentos_interesse: procedimentos,
       data_nascimento: dataNascimento || null,
-      valor_pago_acumulado: valorNum,
     }
     if (whatsappTocado) campos.whatsapp_lead = whatsapp
 
@@ -358,7 +363,21 @@ export default function LeadDetail() {
        Espelhar isso à mão daria uma tela que discorda do banco até o F5. */
     const { data: salvo, error } = await supabase.from('crm_clinica')
       .update(campos).eq('id', lead.id).select().single()
+
+    let erroDoValor = ''
+    if (!error && valorMudou) {
+      const { error: eValor } = await supabase.rpc('definir_valor_pago', { p_lead: lead.id, p_valor: valorNum })
+      if (eValor) {
+        erroDoValor = eValor.code === '42501'
+          ? 'O resto da ficha foi salvo, mas você não tem acesso ao valor pago.'
+          : 'O resto da ficha foi salvo, mas o valor pago não. Tente de novo.'
+      } else if (salvo) {
+        (salvo as LeadClinica).valor_pago_acumulado = valorNum
+      }
+    }
+
     setSavingFicha(false)
+    if (erroDoValor) setFichaError(erroDoValor)
     if (error) {
       if (error.code === ERRO_DUPLICADO) {
         setFichaError('Esse WhatsApp acabou de ser cadastrado para outra pessoa.')
