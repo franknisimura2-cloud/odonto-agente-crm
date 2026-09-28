@@ -1,0 +1,8 @@
+<script>
+const b64=o=>btoa(JSON.stringify(o)).replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_');
+const jwt=b64({alg:'HS256',typ:'JWT'})+'.'+b64({sub:'00000000-0000-0000-0000-000000000000',role:'authenticated',exp:9999999999})+'.x';
+const ref=new URLSearchParams(location.search).get('ref');
+if(!ref){document.body.textContent='Falta ?ref=<projeto supabase>';throw 0}
+localStorage.setItem('sb-'+ref+'-auth-token',JSON.stringify({access_token:jwt,token_type:'bearer',expires_in:3600,expires_at:9999999999,refresh_token:'x',user:{id:'00000000-0000-0000-0000-000000000000',aud:'authenticated',role:'authenticated',email:'teste@teste'}}));
+location.replace(new URLSearchParams(location.search).get('ir')||'/');
+</script>
