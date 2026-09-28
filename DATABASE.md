@@ -207,7 +207,27 @@ nesta ordem** — cada um depende do anterior:
     > arquivo versionado. Quem agenda é `npm run followup:ligar`, que guarda os
     > dois no Vault. Até lá, tudo aqui existe e fica parado.
 
+31. `supabase/migrations/0031_niveis_de_acesso.sql` — **dona, recepção e
+    profissional**: `usuarios` ganha `papel`, `permissoes` (o que a dona mudou
+    em relação ao papel), `profissional_id` e `ativo`; `pode()` e
+    `meu_profissional()` respondem às políticas, que passam a separar leitura
+    de alteração; ninguém muda o próprio acesso e a última dona não sai
+    (gatilho `usuarios_protege_acesso`); a coluna `valor_pago_acumulado` sai do
+    alcance da equipe e volta filtrada por `valor_pago_visivel()` e
+    `definir_valor_pago()`; e o gatilho da agenda passa a rodar como o sistema.
+    Quem existia vira dona. Teste por papel em
+    [`supabase/testes/0031_niveis_de_acesso.sql`](supabase/testes/0031_niveis_de_acesso.sql).
+
+    > ⚠️ **Coluna nova em `crm_clinica_dados` precisa de `grant`.** A partir
+    > da 0031 as permissões dessa tabela são por coluna: coluna criada depois
+    > nasce invisível para a equipe, e a tela quebra com "permission denied for
+    > column".
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
+
+**Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
+aplica só as que faltam e anota cada uma em `public._migracoes_aplicadas`.
+Testar sem gravar: `node scripts/testar-sql.mjs <migração> <teste>`.
 
 Confira o resultado com as consultas da [seção 10](#10-consultas-úteis-para-verificação).
 
@@ -2349,13 +2369,15 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 25 — 15 em public + 10 em storage)
+-- Políticas (esperado: 38 — 28 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
 --    nenhum era o certo: a `0020` acrescentou duas políticas de DELETE e
 --    ninguém atualizou as cópias. Mexeu nas políticas? Mude AQUI, e só aqui.
---    (A `0030` acrescentou a 15ª, a de leitura de `agente_followups`.)
+--    (A `0030` acrescentou a 15ª, a de leitura de `agente_followups`. A `0031`,
+--    dos níveis de acesso, separou leitura de alteração em quase todas as
+--    tabelas: 28 em public. O teste dela confere este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 
@@ -2401,7 +2423,11 @@ where c.relnamespace = 'public'::regnamespace and c.relkind = 'v'
                 or 'security_invoker=on'   = any(c.reloptions), false);
 
 -- Funções que passam por cima do RLS e a chave pública chama
--- (esperado: NENHUMA linha — armadilha 23)
+-- (esperado: SÓ `definir_valor_pago` e `valor_pago_visivel` — armadilha 23)
+--
+-- As duas são exceções de propósito (migração 0031): leem e gravam a coluna do
+-- valor pago, que a equipe não alcança, e cada uma confere `pode('valores')`
+-- antes. Qualquer OUTRO nome nesta lista é um furo.
 select p.proname from pg_proc p
 where p.pronamespace = 'public'::regnamespace and p.prosecdef
   and p.prorettype <> 'trigger'::regtype

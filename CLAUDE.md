@@ -27,7 +27,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 30), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 31), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 
@@ -687,6 +687,41 @@ Regras que quebram em silêncio se esquecidas:
   publicar: o próximo F5 mostra o aviso. As fichas saem com `no-store`
   ([`vercel.json`](vercel.json)), e o rewrite do `vercel.json` não alcança
   `/clinicas/` — ficha que não existe responde 404, e não a página do sistema.
+
+### Níveis de acesso (migração 0031)
+
+Cada usuário tem um **papel** — `dona`, `recepcao`, `profissional` — e, por
+cima dele, permissões que a dona liga e desliga (`usuarios.permissoes`). As
+permissões são `dashboard`, `valores`, `conversas`, `agenda_todas`,
+`agenda_editar`, `pessoas`, `crm`, `exportar`, `configurar` e `equipe`; a
+profissional ligada a um cadastro (`usuarios.profissional_id`) vê sempre a
+própria agenda e quem ela atende.
+
+**A trava está em três lugares, e os três precisam andar juntos:**
+
+| Onde | Como |
+|---|---|
+| **Banco** | Toda política pergunta `(select public.pode('x'))`. É a trava de verdade |
+| **Função `whatsapp`** | Roda com a chave de serviço, que ignora o RLS — cada rota chamada pela tela usa `exigir(req, 'permissão')`, que pergunta ao `pode()` com o token do usuário |
+| **Tela** | Só acompanha: esconde o que a pessoa não pode usar |
+
+Regras que quebram em silêncio:
+
+- **Tabela nova → política com `pode()`.** Uma tabela com `using (true)`
+  devolve tudo para a recepcionista e a profissional.
+- **Rota nova na função `whatsapp` chamada pela tela → `exigir()`**, nunca só
+  `usuarioDaSessao()`.
+- **Coluna nova em `crm_clinica_dados` → `grant select, update (coluna) ...
+  to authenticated`.** As permissões dela são por coluna, para esconder o
+  valor pago; coluna sem grant quebra a tela com "permission denied".
+- **O valor pago** só se lê pela visão `crm_clinica` (vem nulo sem `valores`)
+  e só se grava por `definir_valor_pago()`. O tempo real (`crm_clinica_dados`)
+  não manda a coluna — foi conferido.
+- **Gatilho que atualiza outra tabela roda como o sistema** (`security
+  definer`). Rodando como quem editou, o RLS filtra o UPDATE para zero linhas,
+  sem erro — foi o que ia acontecer com a baixa da profissional.
+- **Teste por papel** em [`supabase/testes/`](supabase/testes/), pelo
+  `scripts/testar-sql.mjs`, que desfaz tudo no fim. Mexeu em política, rode.
 
 ### A atendente de cada clínica: `clinicas/<nome>/`
 

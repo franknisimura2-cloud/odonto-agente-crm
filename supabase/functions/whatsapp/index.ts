@@ -701,8 +701,8 @@ async function mandarFollowUp(pendente: Pendente, reservaId: string): Promise<vo
 // ---------------------------------------------------------------------------
 
 async function rotaPromptOficial(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'configurar')
+  if (usuario instanceof Response) return usuario
   return json({ ok: true, prompt: PROMPT_OFICIAL })
 }
 
@@ -717,8 +717,8 @@ async function rotaPromptOficial(req: Request): Promise<Response> {
  * muita gente esconde a foto. Isso não é erro, e a tela mostra a inicial.
  */
 async function rotaFoto(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'pessoas', 'conversas')
+  if (usuario instanceof Response) return usuario
 
   const numero = (new URL(req.url).searchParams.get('whatsapp') ?? '').replace(/\D/g, '')
   if (!numero) return json({ ok: false, motivo: 'sem_numero' }, 400)
@@ -740,8 +740,8 @@ async function rotaFoto(req: Request): Promise<Response> {
  * em silêncio — o erro só aparecia no log da função.
  */
 async function rotaChavesIA(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'configurar')
+  if (usuario instanceof Response) return usuario
 
   return json({ ok: true, ...chavesDeIA() })
 }
@@ -758,8 +758,8 @@ async function rotaChavesIA(req: Request): Promise<Response> {
 // ---------------------------------------------------------------------------
 
 async function rotaConexao(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req)
+  if (usuario instanceof Response) return usuario
 
   const ponte = await ponteAtiva()
 
@@ -790,8 +790,8 @@ async function rotaConexao(req: Request): Promise<Response> {
  * mesma razão de `/conexao` devolver o veredito e não a URL.
  */
 async function rotaApontarWebhook(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'configurar')
+  if (usuario instanceof Response) return usuario
 
   const ponte = await ponteAtiva()
   if (!ponte.configurada()) return json({ ok: false, motivo: 'nao_configurado' }, 400)
@@ -814,8 +814,8 @@ async function rotaApontarWebhook(req: Request): Promise<Response> {
 }
 
 async function rotaConectar(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'configurar')
+  if (usuario instanceof Response) return usuario
 
   const ponte = await ponteAtiva()
   if (!ponte.configurada()) return json({ ok: false, motivo: 'nao_configurado' }, 400)
@@ -827,8 +827,8 @@ async function rotaConectar(req: Request): Promise<Response> {
 }
 
 async function rotaDesconectar(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'configurar')
+  if (usuario instanceof Response) return usuario
 
   const ponte = await ponteAtiva()
   if (!ponte.configurada()) return json({ ok: false, motivo: 'nao_configurado' }, 400)
@@ -865,8 +865,8 @@ async function rotaDesconectar(req: Request): Promise<Response> {
  * a quem pertenciam.
  */
 async function rotaApagarPessoa(req: Request): Promise<Response> {
-  const usuario = await usuarioDaSessao(req)
-  if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  const usuario = await exigir(req, 'pessoas')
+  if (usuario instanceof Response) return usuario
 
   const corpo = await req.json().catch(() => ({})) as { lead_id?: string }
   const leadId = String(corpo.lead_id ?? '').trim()
@@ -916,9 +916,43 @@ async function usuarioDaSessao(req: Request): Promise<{ id: string } | null> {
   return await r.json()
 }
 
-async function rotaEnviar(req: Request): Promise<Response> {
+/**
+ * A sessão E a permissão (migração 0031).
+ *
+ * Esta função fala com o banco pela chave de serviço, que passa por cima do
+ * RLS — então quem barra a recepcionista de apagar uma pessoa, ou a
+ * profissional de desconectar o WhatsApp, é esta conferência, e não o banco.
+ *
+ * A pergunta vai ao próprio banco (`pode()`), com o token DO USUÁRIO: é o
+ * `auth.uid()` dele que a função lê. Uma regra só, a mesma das políticas — e
+ * testada por papel em `supabase/testes/0031_niveis_de_acesso.sql`.
+ *
+ * Com mais de uma permissão, basta uma. Sem nenhuma, basta estar logado.
+ */
+async function exigir(req: Request, ...permissoes: string[]): Promise<{ id: string } | Response> {
   const usuario = await usuarioDaSessao(req)
   if (!usuario) return json({ ok: false, motivo: 'sem_sessao' }, 401)
+  if (permissoes.length === 0) return usuario
+
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+  for (const permissao of permissoes) {
+    const r = await fetch(`${URL_SUPABASE}/rest/v1/rpc/pode`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_permissao: permissao }),
+    })
+    if (r.ok && (await r.json()) === true) return usuario
+  }
+  return json({ ok: false, motivo: 'sem_permissao' }, 403)
+}
+
+async function rotaEnviar(req: Request): Promise<Response> {
+  const usuario = await exigir(req, 'conversas')
+  if (usuario instanceof Response) return usuario
 
   const corpo = await req.json().catch(() => ({}))
   const leadId = String(corpo.lead_id ?? '')
