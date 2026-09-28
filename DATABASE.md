@@ -243,6 +243,13 @@ nesta ordem** — cada um depende do anterior:
     gatilho `usuarios_protege_acesso` mais estrito: promover alguém a dona,
     ou mexer no acesso de uma dona, exige ser dona.
 
+36. `supabase/migrations/0036_dashboard_profissionais_pela_marcacao.sql` —
+    o gráfico "Agendamentos por Profissional" passa a contar pela data em que
+    o agendamento foi marcado (`consultas.created_at`), como o cartão
+    "Agendamentos"; cancelados ficam de fora. Antes contava pela data da
+    consulta, e o período termina hoje: o que era marcado para os próximos
+    dias sumia do gráfico.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)

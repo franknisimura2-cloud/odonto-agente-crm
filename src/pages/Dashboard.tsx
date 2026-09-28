@@ -524,7 +524,7 @@ export default function Dashboard() {
         >
           <TituloGrafico
             titulo="Agendamentos por Profissional"
-            explicacao="Agendamentos marcados ou realizados no período, pela data do agendamento"
+            explicacao="Agendamentos marcados no período, como no cartão acima — cancelados ficam de fora"
           />
           {profissionais.length === 0 ? (
             <Vazio texto="Nenhum profissional ativo cadastrado." />
