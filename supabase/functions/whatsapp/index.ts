@@ -143,6 +143,8 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && rota === '/conexao/desconectar') return await rotaDesconectar(req)
     if (req.method === 'POST' && rota === '/conexao/apontar-webhook') return await rotaApontarWebhook(req)
     if (req.method === 'POST' && rota === '/apagar-pessoa') return await rotaApagarPessoa(req)
+    if (req.method === 'POST' && rota === '/equipe/criar') return await rotaEquipeCriar(req)
+    if (req.method === 'POST' && rota === '/equipe/nova-senha') return await rotaEquipeNovaSenha(req)
     if (req.method === 'POST' && (rota === '' || rota === '/')) return await rotaWebhook(req)
     return json({ ok: false, motivo: 'rota_desconhecida' }, 404)
   } catch (e) {
@@ -948,6 +950,139 @@ async function exigir(req: Request, ...permissoes: string[]): Promise<{ id: stri
     if (r.ok && (await r.json()) === true) return usuario
   }
   return json({ ok: false, motivo: 'sem_permissao' }, 403)
+}
+
+// ---------------------------------------------------------------------------
+// A equipe: criar login e gerar senha provisória (tela "Equipe e acessos")
+// ---------------------------------------------------------------------------
+//
+// Precisam da chave de serviço (Auth admin), por isso moram aqui e não na
+// tela. O resto da gestão da equipe — papel, permissões, desligar — a tela faz
+// direto no banco, que confere `equipe` pela política e pelo gatilho da 0031
+// e da 0035.
+//
+// SEM E-MAIL, de propósito: o servidor de e-mail embutido do Supabase só
+// manda para os membros da conta do Supabase. A dona recebe uma senha
+// provisória, passa para a pessoa, e ela troca no primeiro acesso
+// (Configurações → Perfil). Convite por e-mail pede um SMTP próprio.
+
+const PAPEIS = ['dona', 'recepcao', 'profissional']
+
+/**
+ * Uma senha provisória que passa na regra do projeto (10+ caracteres, com
+ * minúscula, maiúscula, número e símbolo) — sem os caracteres que se
+ * confundem ao ditar ou copiar à mão (0/O, 1/l/I).
+ */
+function senhaProvisoria(): string {
+  const grupos = ['abcdefghijkmnpqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%&*?']
+  const sorteio = (conjunto: string) => {
+    const n = new Uint32Array(1)
+    crypto.getRandomValues(n)
+    return conjunto[n[0] % conjunto.length]
+  }
+  const letras = grupos.map(sorteio)
+  while (letras.length < 12) letras.push(sorteio(grupos.join('')))
+  // Embaralha para os quatro obrigatórios não ficarem sempre no começo.
+  for (let i = letras.length - 1; i > 0; i--) {
+    const n = new Uint32Array(1)
+    crypto.getRandomValues(n)
+    const j = n[0] % (i + 1);
+    [letras[i], letras[j]] = [letras[j], letras[i]]
+  }
+  return letras.join('')
+}
+
+async function authAdmin(caminho: string, metodo: string, corpo?: unknown): Promise<Response> {
+  const chave = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  return await fetch(`${URL_SUPABASE}/auth/v1/admin${caminho}`, {
+    method: metodo,
+    headers: { apikey: chave, Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  })
+}
+
+/** Pergunta ao banco, com o token de quem pediu, se ele é dona (0035). */
+async function quemPediuEDona(req: Request): Promise<boolean> {
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+  const r = await fetch(`${URL_SUPABASE}/rest/v1/rpc/sou_dona`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      'Content-Type': 'application/json',
+    },
+    body: '{}',
+  })
+  return r.ok && (await r.json()) === true
+}
+
+async function rotaEquipeCriar(req: Request): Promise<Response> {
+  const usuario = await exigir(req, 'equipe')
+  if (usuario instanceof Response) return usuario
+
+  const corpo = await req.json().catch(() => ({}))
+  const email = String(corpo.email ?? '').trim().toLowerCase()
+  const nome = String(corpo.nome ?? '').trim()
+  const papel = String(corpo.papel ?? '')
+  const profissionalId = corpo.profissional_id ? String(corpo.profissional_id) : null
+
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !nome || !PAPEIS.includes(papel)) {
+    return json({ ok: false, motivo: 'dados_invalidos' }, 400)
+  }
+  // A mesma regra da 0035: dona, só uma dona cria.
+  if (papel === 'dona' && !(await quemPediuEDona(req))) {
+    return json({ ok: false, motivo: 'so_dona_cria_dona' }, 403)
+  }
+
+  const senha = senhaProvisoria()
+  const r = await authAdmin('/users', 'POST', {
+    email, password: senha, email_confirm: true, user_metadata: { nome },
+  })
+  if (!r.ok) {
+    const erro = await r.json().catch(() => ({}))
+    const jaExiste = r.status === 422 || /already|registered|exists/i.test(JSON.stringify(erro))
+    return json({ ok: false, motivo: jaExiste ? 'email_existe' : 'falha_ao_criar' }, jaExiste ? 409 : 500)
+  }
+  const novo = await r.json() as { id: string }
+
+  // O gatilho `handle_new_user` já criou a linha (sem acesso). Aqui ela
+  // recebe o papel pedido — pela chave de serviço, que o gatilho da 0031 deixa
+  // passar (a permissão de quem pediu já foi conferida acima).
+  try {
+    await atualizar('usuarios', `id=eq.${novo.id}`, { papel, profissional_id: profissionalId, nome })
+  } catch (e) {
+    // O caso real é a profissional que já tem login (índice único). Sem este
+    // desfazer, sobraria um login sem papel nenhum.
+    await authAdmin(`/users/${novo.id}`, 'DELETE')
+    const repetido = /duplicate|unique|23505/i.test(String(e))
+    return json({ ok: false, motivo: repetido ? 'profissional_ja_tem_login' : 'falha_ao_criar' }, repetido ? 409 : 500)
+  }
+
+  console.log(`equipe: ${email} criado como ${papel} por ${usuario.id}`)
+  return json({ ok: true, id: novo.id, senha })
+}
+
+async function rotaEquipeNovaSenha(req: Request): Promise<Response> {
+  const usuario = await exigir(req, 'equipe')
+  if (usuario instanceof Response) return usuario
+
+  const corpo = await req.json().catch(() => ({}))
+  const alvo = String(corpo.id ?? '')
+  if (!alvo) return json({ ok: false, motivo: 'dados_invalidos' }, 400)
+
+  const linhas = await selecionar<{ papel: string }>(`usuarios?select=papel&id=eq.${alvo}&limit=1`)
+  if (!linhas.length) return json({ ok: false, motivo: 'nao_encontrado' }, 404)
+  // Senha nova de uma dona é a chave da empresa inteira: só outra dona gera.
+  if (linhas[0].papel === 'dona' && !(await quemPediuEDona(req))) {
+    return json({ ok: false, motivo: 'so_dona_mexe_em_dona' }, 403)
+  }
+
+  const senha = senhaProvisoria()
+  const r = await authAdmin(`/users/${alvo}`, 'PUT', { password: senha })
+  if (!r.ok) return json({ ok: false, motivo: 'falha_ao_trocar' }, 500)
+
+  console.log(`equipe: senha provisória nova para ${alvo} por ${usuario.id}`)
+  return json({ ok: true, senha })
 }
 
 async function rotaEnviar(req: Request): Promise<Response> {

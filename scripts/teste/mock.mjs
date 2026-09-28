@@ -49,6 +49,16 @@ export function responder(url, objeto) {
     return { papel, profissional_id: papel === 'profissional' ? 'pd' : null, permissoes: Object.fromEntries(todas.map((p) => [p, liga.includes(p)])) }
   }
   if (rpc === 'valores_das_consultas') return (process.env.MOCK_PAPEL || 'dona') === 'dona' ? consultas.map((c) => ({ id: c.id, valor_pago: 250 })) : []
+  if (rpc === 'equipe') {
+    const todas = ['dashboard', 'valores', 'conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'crm', 'exportar', 'configurar', 'equipe']
+    const ef = (liga) => Object.fromEntries(todas.map((p) => [p, liga.includes(p)]))
+    return [
+      { id: '00000000-0000-0000-0000-000000000000', nome: 'Danielle Braga', email: 'dona@clinica.com', papel: 'dona', profissional_id: null, ativo: true, permissoes: {}, efetivas: ef(todas) },
+      { id: 'u2', nome: 'Carla Recepção', email: 'carla@clinica.com', papel: 'recepcao', profissional_id: null, ativo: true, permissoes: { valores: true }, efetivas: ef(['conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'valores']) },
+      { id: 'u3', nome: 'Elis Camargo', email: 'elis@clinica.com', papel: 'profissional', profissional_id: 'pe', ativo: true, permissoes: {}, efetivas: ef([]) },
+      { id: 'u4', nome: 'Ex-funcionária', email: 'ex@clinica.com', papel: 'recepcao', profissional_id: null, ativo: false, permissoes: {}, efetivas: ef(['conversas', 'agenda_todas', 'agenda_editar', 'pessoas']) },
+    ]
+  }
   if (rpc === 'dashboard_numeros') return [{ novos_contatos: 48, consultas_agendadas: 19 }]
   if (rpc === 'dashboard_por_dia') return Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 29 + i); return { dia: d.toISOString().slice(0, 10), atendimentos: 1 + ((i * 7) % 5), agendamentos: (i * 3) % 3 } })
   if (rpc === 'dashboard_dia_semana') return [0,1,2,3,4,5,6].map((d) => ({ dia_semana: d, contatos: [2, 9, 11, 8, 10, 7, 1][d] }))

@@ -27,7 +27,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 33), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 35), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 
@@ -723,6 +723,14 @@ Regras que quebram em silêncio:
 - **Gatilho que atualiza outra tabela roda como o sistema** (`security
   definer`). Rodando como quem editou, o RLS filtra o UPDATE para zero linhas,
   sem erro — foi o que ia acontecer com a baixa da profissional.
+- **Só uma dona mexe em donas** (0035): quem tem `equipe` sem ser dona não
+  promove ninguém a dona nem altera, desliga ou troca a senha de uma dona. A
+  regra está no gatilho e repetida nas rotas `/equipe/*` (`sou_dona()`).
+- **A aba Equipe** ([`TabEquipe.tsx`](src/components/TabEquipe.tsx)) cria login
+  com **senha provisória** (rota `/equipe/criar`) — sem e-mail, de propósito:
+  o SMTP embutido do Supabase só manda para membros da conta. Papel,
+  permissões e desligar vão direto ao banco. As permissões efetivas de cada um
+  vêm de `equipe()` (0034), pela mesma `permissao_efetiva()` da `pode()`.
 - **Teste por papel** em [`supabase/testes/`](supabase/testes/), pelo
   `scripts/testar-sql.mjs`, que desfaz tudo no fim. Mexeu em política, rode.
 

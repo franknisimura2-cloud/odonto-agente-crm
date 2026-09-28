@@ -18,6 +18,7 @@ fica o lado de negócio e a ordem das coisas.
 | Instalar como aplicativo, na cor da clínica | ✔ No ar |
 | **Fase 1** — um site, um endereço por clínica | ✔ No ar |
 | **Fase 2** — a atendente de cada clínica em `clinicas/<nome>/` | ✔ Pronta |
+| **Níveis de acesso** — dona, recepção, profissional, com permissões por pessoa e a aba Equipe | ✔ No ar (migrações 0031–0035) |
 | **Fase 3** — `clinica:nova`: criar uma clínica inteira com um comando | ⏭ Próxima |
 | Fases 4 a 7 | Ver seção 4 |
 
@@ -80,7 +81,11 @@ Do "fechou" à liberação: **1 a 2 semanas**, quase tudo tempo da clínica.
 | **7** | `instalar:conferir` entender `clinicas/<nome>/` (hoje procura as chaves em `agente-ia/`, onde não estão mais) | — |
 
 Mais para frente: verificação em duas etapas para a equipe das clínicas;
-papéis (recepção sem ver faturamento); API oficial do WhatsApp (Meta).
+convite por e-mail (pede um SMTP próprio); API oficial do WhatsApp (Meta).
+
+**Aplicar migrações** num banco: `node scripts/aplicar-migracoes.mjs` (ou
+`--clinica <nome>`) — só as que faltam, registradas em
+`public._migracoes_aplicadas`. A fase 4 vai rodar isso em todas as clínicas.
 
 ---
 

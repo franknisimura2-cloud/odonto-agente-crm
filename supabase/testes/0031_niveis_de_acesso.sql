@@ -68,10 +68,12 @@ select count(*) filter (where schemaname = 'public') = 28 and count(*) filter (w
   from pg_policies where schemaname in ('public', 'storage');
 
 insert into r (ok, texto)
-select coalesce(array_agg(p.proname order by p.proname), '{}') = array['definir_valor_pago', 'valor_pago_visivel']::name[],
+-- As duas da 0031 e as duas da 0033: o teste roda contra o banco de hoje.
+select coalesce(array_agg(p.proname order by p.proname), '{}')
+         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'valor_pago_visivel', 'valores_das_consultas']::name[],
        'funções que passam por cima do RLS e a equipe chama: '
        || coalesce(string_agg(p.proname, ', ' order by p.proname), 'nenhuma')
-       || ' (esperado: só as duas do valor pago)'
+       || ' (esperado: as quatro dos valores pagos)'
   from pg_proc p
  where p.pronamespace = 'public'::regnamespace and p.prosecdef
    and p.prorettype <> 'trigger'::regtype

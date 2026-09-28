@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   User, Clock, Upload, Save, MapPin, Check, Eye, EyeOff,
-  Building2, KeyRound, Trash2,
+  Building2, KeyRound, Trash2, Users,
 } from 'lucide-react'
 import zxcvbn from 'zxcvbn'
 import { supabase } from '../lib/supabase'
 import type { Usuario, ConfiguracoesClinica, HorarioComercial } from '../types'
 import TabClinica from '../components/TabClinica'
+import TabEquipe from '../components/TabEquipe'
+import { useTelaPequena } from '../lib/useTelaPequena'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import { useAgente } from '../lib/agente'
 import { MARCA, MARCA_SUAVE, MARCA_CLARO, COR_PADRAO } from '../lib/marca'
@@ -117,7 +119,7 @@ const FUSOS = [
 
 const FUSO_PADRAO = 'America/Sao_Paulo'
 
-type TabKey = 'perfil' | 'clinica' | 'horarios'
+type TabKey = 'perfil' | 'clinica' | 'horarios' | 'equipe'
 
 /**
  * Só o que é configuração da clínica.
@@ -130,6 +132,8 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'perfil',   label: 'Perfil',                    icon: User },
   { key: 'clinica',  label: 'Empresa',                   icon: MapPin },
   { key: 'horarios', label: 'Horários de Funcionamento', icon: Clock },
+  // Quem entra e o que cada um pode (níveis de acesso, 0031–0035).
+  { key: 'equipe',   label: 'Equipe',                    icon: Users },
 ]
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -800,7 +804,9 @@ export default function Configuracoes() {
   const [userId, setUserId] = useState<string | null>(null)
   // Perfil é de todo mundo; Empresa e Horários, de quem configura.
   const acesso = useAcesso()
-  const abas = TABS.filter(({ key }) => key === 'perfil' || acesso.pode('configurar'))
+  const pequena = useTelaPequena()
+  const abas = TABS.filter(({ key }) =>
+    key === 'perfil' || (key === 'equipe' ? acesso.pode('equipe') : acesso.pode('configurar')))
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -828,11 +834,12 @@ export default function Configuracoes() {
       )}
 
       {/* Tabs */}
-      <div className="fade-in-2" style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #DCE6EA' }}>
+      {/* Quebra de linha: com a aba Equipe, as quatro não cabem num celular. */}
+      <div className="fade-in-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 20, borderBottom: '1px solid #DCE6EA' }}>
         {abas.map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
             style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: activeTab === key ? 700 : 500, color: activeTab === key ? MARCA : '#6B818C', borderBottom: activeTab === key ? `2px solid ${MARCA}` : '2px solid transparent', fontFamily: "'Plus Jakarta Sans', sans-serif", transition: 'color 0.15s', marginBottom: -1 }}>
-            <Icon size={15} /> {label}
+            <Icon size={15} /> {pequena && key === 'horarios' ? 'Horários' : label}
           </button>
         ))}
       </div>
@@ -842,6 +849,7 @@ export default function Configuracoes() {
         {activeTab === 'perfil' && userId && <TabPerfil userId={userId} />}
         {activeTab === 'clinica' && acesso.pode('configurar') && <TabClinica />}
         {activeTab === 'horarios' && acesso.pode('configurar') && <TabHorarios />}
+        {activeTab === 'equipe' && acesso.pode('equipe') && <TabEquipe />}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

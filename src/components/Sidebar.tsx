@@ -25,6 +25,7 @@ import { AGENTE_PAGINA } from '../lib/agente'
 import { NOME_DO_SISTEMA, MARCA_SUAVE, MARCA } from '../lib/marca'
 import { LARGURA_TABLET } from '../lib/useTelaPequena'
 import { useAcesso, veAgenda, type Acesso } from '../lib/acesso'
+import { NOME_DO_PAPEL } from '../lib/equipe'
 import type { Usuario, ConfiguracoesClinica } from '../types'
 
 /**
@@ -613,7 +614,7 @@ export default function Sidebar({ gaveta }: { gaveta?: Gaveta }) {
               </div>
               {/* Era "Secretária", escrito à mão para todo mundo que entra. O
                   sistema não tem cargos — quem tem login é da equipe. */}
-              <div style={{ fontSize: 11.5, color: '#6B818C' }}>Equipe</div>
+              <div style={{ fontSize: 11.5, color: '#6B818C' }}>{acesso.papel ? NOME_DO_PAPEL[acesso.papel] : 'Equipe'}</div>
             </div>
           )}
           {!collapsed && (

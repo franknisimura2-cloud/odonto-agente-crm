@@ -234,6 +234,15 @@ nesta ordem** — cada um depende do anterior:
     colunas (`COLUNAS_CONSULTA`). Teste em
     [`supabase/testes/0033_valor_da_consulta.sql`](supabase/testes/0033_valor_da_consulta.sql).
 
+34. `supabase/migrations/0034_equipe.sql` — `usuarios.email` (copiado do
+    Auth pelo gatilho), `permissao_efetiva()` (a regra que a `pode()` passa a
+    usar) e `equipe()`: a lista com as permissões efetivas de cada pessoa,
+    vazia para quem não tem `equipe`.
+
+35. `supabase/migrations/0035_so_dona_mexe_em_dona.sql` — `sou_dona()` e o
+    gatilho `usuarios_protege_acesso` mais estrito: promover alguém a dona,
+    ou mexer no acesso de uma dona, exige ser dona.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
