@@ -12,6 +12,8 @@ import ApagarEstaPessoa from '../components/ApagarEstaPessoa'
 import AvisoForaDaLista from '../components/AvisoForaDaLista'
 import type { LeadClinica, LeadStatus, Consulta, ConsultaStatus, Profissional } from '../types'
 import { MARCA_SUAVE, MARCA, MARCA_CLARO } from '../lib/marca'
+import { useAcesso } from '../lib/acesso'
+import { COLUNAS_CONSULTA, valoresDasConsultas, definirValorDaConsulta } from '../lib/consultas'
 
 /* ──────────────────────────────────────────────
    Constants
@@ -92,6 +94,7 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const catalogo = useCatalogoProcedimentos()
+  const podeValores = useAcesso().pode('valores')
 
   const set = (field: keyof NewConsultaForm, value: string) => setForm((f) => ({ ...f, [field]: value }))
 
@@ -107,9 +110,8 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
       duracao_minutos: Number(form.duracao_minutos),
       status: form.status,
       origem: 'equipe',
-      valor_pago: form.valor_pago ? parseFloat(form.valor_pago.replace(',', '.')) : null,
       observacoes: form.observacoes.trim() || null,
-    }).select().single()
+    }).select(COLUNAS_CONSULTA).single()
     setSaving(false)
     if (err) {
       // 23P01 = exclusion_violation: a restrição `consultas_sem_sobreposicao`
@@ -123,7 +125,15 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
         : 'Erro ao salvar o agendamento.')
       return
     }
-    onSaved(data as Consulta)
+    // O valor não vai no insert (migração 0033): a coluna não é da equipe.
+    // Grava à parte, e só quem tem `valores` chega a ver o campo.
+    const nova = data as unknown as Consulta
+    const valor = form.valor_pago ? parseFloat(form.valor_pago.replace(',', '.')) : null
+    if (podeValores && valor !== null) {
+      try { await definirValorDaConsulta(nova.id, valor); nova.valor_pago = valor }
+      catch { setError('O agendamento foi salvo, mas o valor pago não. Ajuste depois.') ; onSaved(nova); return }
+    }
+    onSaved(nova)
     onClose()
   }
 
@@ -194,11 +204,11 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
               <option value="cancelada">{ROTULO_CONSULTA.cancelada}</option>
             </select>
           </div>
-          <div>
+          {podeValores && <div>
             <label style={{ fontSize: 12.5, fontWeight: 600, color: '#16232B', display: 'block', marginBottom: 6 }}>Valor Pago (opcional)</label>
             <input type="number" min="0" step="0.01" value={form.valor_pago} onChange={(e) => set('valor_pago', e.target.value)} placeholder="0,00" style={inputStyle}
               onFocus={(e) => (e.target.style.borderColor = MARCA)} onBlur={(e) => (e.target.style.borderColor = '#DCE6EA')} />
-          </div>
+          </div>}
           <div>
             <label style={{ fontSize: 12.5, fontWeight: 600, color: '#16232B', display: 'block', marginBottom: 6 }}>Observações (opcional)</label>
             <textarea value={form.observacoes} onChange={(e) => set('observacoes', e.target.value)} rows={3} placeholder="Anotações sobre o agendamento..." style={{ ...inputStyle, resize: 'vertical' }}
@@ -225,6 +235,11 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  // Níveis de acesso: a profissional vê a ficha de quem ela atende, mas não
+  // altera; o dinheiro só aparece com `valores`. O banco já recusa o resto.
+  const acesso = useAcesso()
+  const podePessoas = acesso.pode('pessoas')
+  const podeValores = acesso.pode('valores')
 
   const [lead, setLead] = useState<LeadClinica | null>(null)
   const [consultas, setConsultas] = useState<Consulta[]>([])
@@ -272,7 +287,7 @@ export default function LeadDetail() {
     if (!id) return
     Promise.all([
       supabase.from('crm_clinica').select('*').eq('id', id).single(),
-      supabase.from('consultas').select('*').eq('lead_id', id).order('data_consulta', { ascending: false }),
+      supabase.from('consultas').select(COLUNAS_CONSULTA).eq('lead_id', id).order('data_consulta', { ascending: false }),
       supabase.from('profissionais').select('*').order('nome'),
     ]).then(([{ data: leadData }, { data: consultasData }, { data: profissionaisData }]) => {
       if (leadData) {
@@ -286,11 +301,17 @@ export default function LeadDetail() {
         setDataNascimento(leadData.data_nascimento ? leadData.data_nascimento.slice(0, 10) : '')
         setValorPago(leadData.valor_pago_acumulado !== null && leadData.valor_pago_acumulado !== undefined ? String(leadData.valor_pago_acumulado) : '')
       }
-      setConsultas(consultasData ?? [])
+      const lista = (consultasData ?? []) as unknown as Consulta[]
+      setConsultas(lista)
       setProfissionais((profissionaisData ?? []) as Profissional[])
       setLoading(false)
+      // O valor de cada consulta vem à parte, e só para quem tem `valores`.
+      if (podeValores && lista.length) {
+        void valoresDasConsultas(lista.map((c) => c.id)).then((v) =>
+          setConsultas((atual) => atual.map((c) => ({ ...c, valor_pago: v.get(c.id) ?? null }))))
+      }
     })
-  }, [id])
+  }, [id, podeValores])
 
   /* Supabase Realtime */
   useEffect(() => {
@@ -484,7 +505,7 @@ export default function LeadDetail() {
             </div>
           </div>
 
-          {lead.whatsapp_lead && (
+          {lead.whatsapp_lead && acesso.pode('conversas') && (
             <button onClick={() => navigate(`/conversas?lead=${lead.id}`)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 9, border: '1px solid #DCE6EA', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: MARCA, fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: 'nowrap' }}>
               <MessagesSquare size={14} /> Ver conversa
@@ -503,10 +524,10 @@ export default function LeadDetail() {
               </div>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#16232B' }}>Histórico de Agendamentos</span>
             </div>
-            <button onClick={() => setShowModal(true)}
+            {acesso.pode('agenda_editar') && <button onClick={() => setShowModal(true)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: 'none', background: MARCA, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               <Plus size={14} /> Novo Agendamento
-            </button>
+            </button>}
           </div>
 
           {consultas.length === 0 ? (
@@ -519,7 +540,7 @@ export default function LeadDetail() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DCE6EA' }}>
-                    {['Serviço', 'Data', 'Profissional', 'Status', 'Valor Pago', 'Observações'].map((h) => (
+                    {['Serviço', 'Data', 'Profissional', 'Status', ...(podeValores ? ['Valor Pago'] : []), 'Observações'].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#6B818C', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -548,7 +569,7 @@ export default function LeadDetail() {
                             {ROTULO_CONSULTA[c.status]}
                           </span>
                         </td>
-                        <td style={{ padding: '11px 12px', color: '#6B818C' }}>{fmtCurrency(c.valor_pago)}</td>
+                        {podeValores && <td style={{ padding: '11px 12px', color: '#6B818C' }}>{fmtCurrency(c.valor_pago)}</td>}
                         <td style={{ padding: '11px 12px', color: '#6B818C', maxWidth: 200 }}>{c.observacoes ?? '—'}</td>
                       </tr>
                     )
@@ -573,6 +594,13 @@ export default function LeadDetail() {
           </div>
 
           <div style={{ borderTop: '1px solid #EDF2F4', margin: '18px 0' }} />
+
+          {/* Sem `pessoas`, a ficha é só leitura: o fieldset desliga todos os
+              campos e botões de dentro (o banco recusaria o salvar). */}
+          {!podePessoas && (
+            <div style={{ fontSize: 12.5, color: '#6B818C', marginBottom: 12 }}>Você vê esta ficha, mas não pode alterá-la.</div>
+          )}
+          <fieldset disabled={!podePessoas} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, opacity: podePessoas ? 1 : 0.55 }}>
 
           {/* A FICHA, EDITÁVEL — E COM UM BOTÃO SÓ.
 
@@ -666,7 +694,7 @@ export default function LeadDetail() {
               />
             </LinhaFicha>
 
-            <LinhaFicha rotulo="Valor Pago Acumulado (R$)">
+            {podeValores && <LinhaFicha rotulo="Valor Pago Acumulado (R$)">
               <input
                 type="number"
                 min="0"
@@ -678,7 +706,7 @@ export default function LeadDetail() {
                 onFocus={(e) => (e.target.style.borderColor = MARCA)}
                 onBlur={(e) => (e.target.style.borderColor = '#DCE6EA')}
               />
-            </LinhaFicha>
+            </LinhaFicha>}
 
             {fichaError && (
               <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', fontSize: 12.5, color: '#DC2626' }}>{fichaError}</div>
@@ -740,6 +768,7 @@ export default function LeadDetail() {
               <Save size={14} /> {notesSaved ? 'Salvo!' : savingNotes ? 'Salvando...' : 'Salvar Anotações'}
             </button>
           </div>
+          </fieldset>
 
         </SectionCard>
       </div>
@@ -750,7 +779,7 @@ export default function LeadDetail() {
           oferece, e ação destrutiva não fica no caminho do olho de quem só
           veio conferir um telefone. */}
       <div className="fade-in-4">
-        <ApagarEstaPessoa pessoa={lead} />
+        {podePessoas && <ApagarEstaPessoa pessoa={lead} />}
       </div>
 
       {showModal && (

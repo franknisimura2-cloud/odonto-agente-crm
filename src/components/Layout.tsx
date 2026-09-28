@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { definirNomeDoAgente } from '../lib/agente'
 import { aplicarCorDoSistema, lembrarCorNoNavegador } from '../lib/marca'
 import { useTelaPequena } from '../lib/useTelaPequena'
+import { AcessoProvider } from './AcessoProvider'
 
 /**
  * A casca do sistema: barra lateral fixa + conteúdo que rola.
@@ -94,6 +95,10 @@ export default function Layout() {
   }, [])
 
   return (
+    // As permissões de quem entrou (níveis de acesso): a barra e as telas as
+    // leem daqui. Pelo mesmo motivo do nome da agente — é o único componente
+    // por onde toda tela autenticada passa.
+    <AcessoProvider>
     <div style={{
       display: 'flex', flexDirection: 'column',
       height: '100dvh', overflow: 'hidden', background: '#F2F6F7',
@@ -125,5 +130,6 @@ export default function Layout() {
         </main>
       </div>
     </div>
+    </AcessoProvider>
   )
 }

@@ -223,6 +223,17 @@ nesta ordem** — cada um depende do anterior:
     > nasce invisível para a equipe, e a tela quebra com "permission denied for
     > column".
 
+32. `supabase/migrations/0032_minhas_permissoes.sql` — `minhas_permissoes()`:
+    as dez permissões do usuário numa pergunta só, calculadas pela mesma
+    `pode()` das políticas. É o que a tela lê para esconder o que não serve.
+
+33. `supabase/migrations/0033_valor_da_consulta.sql` — **o valor pago de
+    cada consulta** sai do alcance da equipe, como o acumulado da 0031, e
+    volta por `valores_das_consultas()` e `definir_valor_pago_consulta()`.
+    ⚠️ `select('*')` em `consultas` passa a ser recusado: a tela lista as
+    colunas (`COLUNAS_CONSULTA`). Teste em
+    [`supabase/testes/0033_valor_da_consulta.sql`](supabase/testes/0033_valor_da_consulta.sql).
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -2423,11 +2434,12 @@ where c.relnamespace = 'public'::regnamespace and c.relkind = 'v'
                 or 'security_invoker=on'   = any(c.reloptions), false);
 
 -- Funções que passam por cima do RLS e a chave pública chama
--- (esperado: SÓ `definir_valor_pago` e `valor_pago_visivel` — armadilha 23)
+-- (esperado: SÓ `definir_valor_pago`, `definir_valor_pago_consulta`,
+-- `valor_pago_visivel` e `valores_das_consultas` — armadilha 23)
 --
--- As duas são exceções de propósito (migração 0031): leem e gravam a coluna do
--- valor pago, que a equipe não alcança, e cada uma confere `pode('valores')`
--- antes. Qualquer OUTRO nome nesta lista é um furo.
+-- As quatro são exceções de propósito (migrações 0031 e 0033): leem e gravam
+-- as colunas de valor pago, que a equipe não alcança, e cada uma confere
+-- `pode('valores')` antes. Qualquer OUTRO nome nesta lista é um furo.
 select p.proname from pg_proc p
 where p.pronamespace = 'public'::regnamespace and p.prosecdef
   and p.prorettype <> 'trigger'::regtype

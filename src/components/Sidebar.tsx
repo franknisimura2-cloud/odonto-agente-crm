@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase'
 import { AGENTE_PAGINA } from '../lib/agente'
 import { NOME_DO_SISTEMA, MARCA_SUAVE, MARCA } from '../lib/marca'
 import { LARGURA_TABLET } from '../lib/useTelaPequena'
+import { useAcesso, veAgenda, type Acesso } from '../lib/acesso'
 import type { Usuario, ConfiguracoesClinica } from '../types'
 
 /**
@@ -33,21 +34,26 @@ import type { Usuario, ConfiguracoesClinica } from '../types'
  * comporta, quem tem chave de acesso, e sair. Por isso não fica na barra junto
  * de Agenda e Clientes, onde a recepção passa o dia.
  */
+// `permite`: quem vê o item (níveis de acesso). É a mesma regra da rota no
+// `App.tsx` — um item visível que leva a uma tela proibida só redirecionaria.
+const configura = (a: Acesso) => a.pode('configurar')
+
 const MENU_USUARIO = [
-  { to: '/atendente-ia', label: AGENTE_PAGINA, icon: Bot },
-  { to: '/token-api', label: 'Token e API', icon: KeyRound },
+  { to: '/atendente-ia', label: AGENTE_PAGINA, icon: Bot, permite: configura },
+  { to: '/token-api', label: 'Token e API', icon: KeyRound, permite: configura },
 ]
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/crm', label: 'CRM', icon: KanbanSquare },
-  { to: '/conversas', label: 'Conversas', icon: MessagesSquare },
-  { to: '/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/leads', label: 'Leads', icon: Users, end: true },
-  { to: '/clientes', label: 'Clientes', icon: UserCheck },
-  { to: '/profissionais', label: 'Profissionais', icon: BriefcaseBusiness },
-  { to: '/servicos', label: 'Serviços', icon: ClipboardList },
-  { to: '/configuracoes', label: 'Configurações', icon: Settings },
+const NAV_ITEMS: { to: string; label: string; icon: typeof Users; end?: boolean; permite: (a: Acesso) => boolean }[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, permite: (a) => a.pode('dashboard') },
+  { to: '/crm', label: 'CRM', icon: KanbanSquare, permite: (a) => a.pode('crm') },
+  { to: '/conversas', label: 'Conversas', icon: MessagesSquare, permite: (a) => a.pode('conversas') },
+  { to: '/agenda', label: 'Agenda', icon: CalendarDays, permite: veAgenda },
+  { to: '/leads', label: 'Leads', icon: Users, end: true, permite: (a) => a.pode('pessoas') },
+  { to: '/clientes', label: 'Clientes', icon: UserCheck, permite: (a) => a.pode('pessoas') },
+  { to: '/profissionais', label: 'Profissionais', icon: BriefcaseBusiness, permite: configura },
+  { to: '/servicos', label: 'Serviços', icon: ClipboardList, permite: configura },
+  // Configurações é de todo mundo: a aba Perfil (nome, foto, senha).
+  { to: '/configuracoes', label: 'Configurações', icon: Settings, permite: () => true },
 ]
 
 /**
@@ -149,6 +155,12 @@ export default function Sidebar({ gaveta }: { gaveta?: Gaveta }) {
   // Na gaveta, sempre aberta: ela já está escondida fora da tela quando fechada,
   // e recolhida ela seria uma coluna de ícones sem nome num celular.
   const collapsed = gaveta ? false : recolhidaPelaPessoa
+
+  // Enquanto as permissões não chegam, o menu fica vazio — e não cheio: um
+  // item que aparece e some em seguida parece defeito.
+  const acesso = useAcesso()
+  const itens = acesso.carregado ? NAV_ITEMS.filter((i) => i.permite(acesso)) : []
+  const menuUsuario = acesso.carregado ? MENU_USUARIO.filter((i) => i.permite(acesso)) : []
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [clinica, setClinica] = useState<ConfiguracoesClinica | null>(null)
   const navigate = useNavigate()
@@ -401,7 +413,7 @@ export default function Sidebar({ gaveta }: { gaveta?: Gaveta }) {
 
       {/* Navigation */}
       <nav style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        {itens.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -472,7 +484,7 @@ export default function Sidebar({ gaveta }: { gaveta?: Gaveta }) {
               zIndex: 60,
             }}
           >
-            {MENU_USUARIO.map(({ to, label, icon: Icon }) => (
+            {menuUsuario.map(({ to, label, icon: Icon }) => (
               <button
                 key={to}
                 onClick={() => { setMenuAberto(false); gaveta?.onFechar(); navigate(to) }}
@@ -500,7 +512,7 @@ export default function Sidebar({ gaveta }: { gaveta?: Gaveta }) {
               </button>
             ))}
 
-            <div style={{ height: 1, background: '#EDF2F4', margin: '5px 4px' }} />
+            {menuUsuario.length > 0 && <div style={{ height: 1, background: '#EDF2F4', margin: '5px 4px' }} />}
 
             <button
               onClick={handleLogout}

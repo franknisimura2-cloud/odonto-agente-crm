@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X, Search, UserPlus, AlertTriangle, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { COLUNAS_CONSULTA } from '../lib/consultas'
 import { useCatalogoProcedimentos } from '../lib/procedimentos'
 import {
   bloqueioNoPeriodo, dentroDoExpediente, haConflito, paraDatetimeLocal, somarMinutos,
@@ -200,7 +201,7 @@ export default function NovoAgendamentoModal({
       status: 'agendada',
       origem: 'equipe',
       observacoes: observacoes.trim() || null,
-    }).select().single()
+    }).select(COLUNAS_CONSULTA).single()
 
     setSalvando(false)
 
@@ -216,7 +217,7 @@ export default function NovoAgendamentoModal({
     }
 
     onSalvo({
-      ...(nova as Consulta),
+      ...(nova as unknown as Consulta),
       lead: { id: leadId, nome_lead: nomePaciente, whatsapp_lead: whatsappPaciente },
     })
     onClose()

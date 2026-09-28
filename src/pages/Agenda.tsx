@@ -17,6 +17,8 @@ import AgendaSemana from '../components/AgendaSemana'
 import AgendaMes from '../components/AgendaMes'
 import AgendaDiaCelular from '../components/AgendaDiaCelular'
 import { useTelaPequena } from '../lib/useTelaPequena'
+import { useAcesso } from '../lib/acesso'
+import { COLUNAS_CONSULTA } from '../lib/consultas'
 import NovoAgendamentoModal from '../components/NovoAgendamentoModal'
 import type {
   ConsultaAgenda, Profissional, ProfissionalBloqueio, ProfissionalHorario,
@@ -36,7 +38,8 @@ type Modo = 'semana' | 'mes'
 /** Chave do filtro das consultas que ainda não têm profissional definido. */
 const SEM_PROFISSIONAL = 'sem-profissional'
 
-const SELECT_CONSULTAS = '*, lead:crm_clinica_dados(id, nome_lead, whatsapp_lead)'
+// Colunas listadas, nunca `*`: o valor pago não é da equipe (migração 0033).
+const SELECT_CONSULTAS = `${COLUNAS_CONSULTA}, lead:crm_clinica_dados(id, nome_lead, whatsapp_lead)`
 
 /* ──────────────────────────────────────────────
    Detalhe da consulta
@@ -50,6 +53,8 @@ function DetalheConsulta({
   onCancelada: (c: ConsultaAgenda) => void
 }) {
   const navigate = useNavigate()
+  // Compareceu, Faltou e Cancelar mexem na agenda: só com `agenda_editar`.
+  const podeEditar = useAcesso().pode('agenda_editar')
   const [cancelando, setCancelando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [dandoBaixa, setDandoBaixa] = useState(false)
@@ -170,7 +175,7 @@ function DetalheConsulta({
             )}
             {/* Já passou da hora: a pergunta deixa de ser "cancelar?" e passa a
                 ser "a pessoa veio?". É a baixa que promove o lead a Paciente. */}
-            {consulta.status === 'agendada' && jaAconteceu && (
+            {podeEditar && consulta.status === 'agendada' && jaAconteceu && (
               <>
                 <button onClick={() => handleBaixa(true)} disabled={dandoBaixa}
                   style={{ flex: 1, minWidth: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 9, border: 'none', background: '#1A7A48', color: '#fff', cursor: dandoBaixa ? 'wait' : 'pointer', fontSize: 13.5, fontWeight: 600, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -182,7 +187,7 @@ function DetalheConsulta({
                 </button>
               </>
             )}
-            {consulta.status === 'agendada' && !jaAconteceu && (
+            {podeEditar && consulta.status === 'agendada' && !jaAconteceu && (
               confirmando ? (
                 <button onClick={handleCancelar} disabled={cancelando}
                   style={{ flex: 1, minWidth: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 9, border: 'none', background: '#DC2626', color: '#fff', cursor: cancelando ? 'not-allowed' : 'pointer', fontSize: 13.5, fontWeight: 600, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -227,6 +232,12 @@ export default function Agenda() {
     try { localStorage.setItem(CHAVE_PROFISSIONAL_CELULAR, id) } catch { /* segue */ }
   }
 
+  // Níveis de acesso: quem não vê a agenda de todas fica na própria, e quem
+  // não edita não vê os botões de marcar (o banco recusaria de qualquer jeito).
+  const acesso = useAcesso()
+  const veTodas = acesso.pode('agenda_todas')
+  const podeEditar = acesso.pode('agenda_editar')
+
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [horarios, setHorarios] = useState<ProfissionalHorario[]>([])
   const [bloqueios, setBloqueios] = useState<ProfissionalBloqueio[]>([])
@@ -260,9 +271,11 @@ export default function Agenda() {
       setProfissionais(lista)
       setHorarios((hors ?? []) as ProfissionalHorario[])
       setBloqueios((blocs ?? []) as ProfissionalBloqueio[])
-      setVisiveis(new Set([...lista.map((p) => p.id), SEM_PROFISSIONAL]))
+      setVisiveis(veTodas || !acesso.profissionalId
+        ? new Set([...lista.map((p) => p.id), SEM_PROFISSIONAL])
+        : new Set([acesso.profissionalId]))
     })
-  }, [])
+  }, [veTodas, acesso.profissionalId])
 
   const carregarConsultas = useCallback(async () => {
     const { data, error } = await supabase.from('consultas')
@@ -330,8 +343,8 @@ export default function Agenda() {
     })
   }
 
-  const temSemProfissional = consultas.some((c) => !c.profissional_id)
-  const ativos = profissionais.filter((p) => p.ativo)
+  const temSemProfissional = veTodas && consultas.some((c) => !c.profissional_id)
+  const ativos = profissionais.filter((p) => p.ativo && (veTodas || p.id === acesso.profissionalId))
 
   const botaoIcone: React.CSSProperties = {
     width: 32, height: 32, borderRadius: 8, border: '1px solid #DCE6EA', background: '#fff',
@@ -376,7 +389,7 @@ export default function Agenda() {
   if (pequena) {
     // Uma profissional guardada que saiu da clínica (apagada ou desativada)
     // vira "todas", em vez de uma agenda vazia sem explicação.
-    const escolhida = ativos.find((p) => p.id === profCelular)
+    const escolhida = veTodas ? ativos.find((p) => p.id === profCelular) : ativos[0]
     const doCelular = escolhida ? consultas.filter((c) => c.profissional_id === escolhida.id) : consultas
     const jornada = escolhida
       ? horarios.find((h) => h.profissional_id === escolhida.id && h.dia_semana === referencia.getDay() && h.ativo)
@@ -398,7 +411,7 @@ export default function Agenda() {
         ) : (
           <>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <select
+              {veTodas ? <select
                 value={escolhida ? escolhida.id : ''}
                 onChange={(e) => escolherProfCelular(e.target.value)}
                 aria-label="De quem é a agenda"
@@ -411,14 +424,18 @@ export default function Agenda() {
                 {ativos.map((p) => (
                   <option key={p.id} value={p.id}>{p.nome}{p.sobrenome ? ` ${p.sobrenome}` : ''}</option>
                 ))}
-              </select>
-              <button onClick={() => setModalNovo({})} aria-label="Novo agendamento"
+              </select> : (
+                <div style={{ flex: 1, minWidth: 0, height: 44, display: 'flex', alignItems: 'center', fontSize: 16, fontWeight: 700, color: '#16232B' }}>
+                  Minha agenda
+                </div>
+              )}
+              {podeEditar && <button onClick={() => setModalNovo({})} aria-label="Novo agendamento"
                 style={{
                   width: 44, height: 44, borderRadius: 10, border: 'none', background: MARCA, color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
                 }}>
                 <Plus size={20} />
-              </button>
+              </button>}
             </div>
 
             {erro && (
@@ -460,10 +477,10 @@ export default function Agenda() {
           </p>
         </div>
 
-        <button onClick={() => setModalNovo({})}
+        {podeEditar && <button onClick={() => setModalNovo({})}
           style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: 'none', background: MARCA, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif", flexShrink: 0 }}>
           <Plus size={15} /> Novo Agendamento
-        </button>
+        </button>}
       </div>
 
       {/* Barra de controle */}
@@ -553,7 +570,7 @@ export default function Agenda() {
               limites={limites}
               jornadaDestaque={jornadaDestaque}
               onClickConsulta={setDetalhe}
-              onClickHorarioVazio={(quando) => setModalNovo({ quando })}
+              onClickHorarioVazio={(quando) => { if (podeEditar) setModalNovo({ quando }) }}
             />
           ) : (
             <AgendaMes

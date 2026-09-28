@@ -41,6 +41,14 @@ export function responder(url, objeto) {
   if (url.includes('/rest/v1/configuracoes_agente')) return objeto ? { nome_agente: 'Letícia' } : [{ nome_agente: 'Letícia' }]
   if (url.includes('/rest/v1/configuracoes_clinica')) { const c = { nome_clinica: 'Núcleo Clínica de Estética', cor_sistema: 'roxo', logo_url: null }; return objeto ? c : [c] }
   const rpc = url.includes('/rpc/') ? url.split('/rpc/')[1].split('?')[0] : null
+  // MOCK_PAPEL=recepcao|profissional|dona (padrão) escolhe quem está logado.
+  if (rpc === 'minhas_permissoes') {
+    const papel = process.env.MOCK_PAPEL || 'dona'
+    const todas = ['dashboard', 'valores', 'conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'crm', 'exportar', 'configurar', 'equipe']
+    const liga = { dona: todas, recepcao: ['conversas', 'agenda_todas', 'agenda_editar', 'pessoas'], profissional: [] }[papel]
+    return { papel, profissional_id: papel === 'profissional' ? 'pd' : null, permissoes: Object.fromEntries(todas.map((p) => [p, liga.includes(p)])) }
+  }
+  if (rpc === 'valores_das_consultas') return (process.env.MOCK_PAPEL || 'dona') === 'dona' ? consultas.map((c) => ({ id: c.id, valor_pago: 250 })) : []
   if (rpc === 'dashboard_numeros') return [{ novos_contatos: 48, consultas_agendadas: 19 }]
   if (rpc === 'dashboard_por_dia') return Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 29 + i); return { dia: d.toISOString().slice(0, 10), atendimentos: 1 + ((i * 7) % 5), agendamentos: (i * 3) % 3 } })
   if (rpc === 'dashboard_dia_semana') return [0,1,2,3,4,5,6].map((d) => ({ dia_semana: d, contatos: [2, 9, 11, 8, 10, 7, 1][d] }))

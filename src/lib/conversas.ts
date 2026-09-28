@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_URL } from './supabase'
+import { COLUNAS_CONSULTA } from './consultas'
 import { rotuloDoAgente } from './agente'
 import type {
   ConversaResumo, MensagemWhatsapp, TipoMensagem, AutorMensagem,
@@ -259,11 +260,11 @@ export async function carregarLead(leadId: string): Promise<LeadClinica | null> 
 export async function carregarConsultas(leadId: string): Promise<ConsultaComProfissional[]> {
   const { data } = await supabase
     .from('consultas')
-    .select('*, profissional:profissionais(nome, sobrenome, cor)')
+    .select(`${COLUNAS_CONSULTA}, profissional:profissionais(nome, sobrenome, cor)`)
     .eq('lead_id', leadId)
     .order('data_consulta', { ascending: false })
 
-  return (data ?? []) as ConsultaComProfissional[]
+  return (data ?? []) as unknown as ConsultaComProfissional[]
 }
 
 /**

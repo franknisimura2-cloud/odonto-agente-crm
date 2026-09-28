@@ -27,7 +27,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 31), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 33), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 
@@ -703,7 +703,7 @@ própria agenda e quem ela atende.
 |---|---|
 | **Banco** | Toda política pergunta `(select public.pode('x'))`. É a trava de verdade |
 | **Função `whatsapp`** | Roda com a chave de serviço, que ignora o RLS — cada rota chamada pela tela usa `exigir(req, 'permissão')`, que pergunta ao `pode()` com o token do usuário |
-| **Tela** | Só acompanha: esconde o que a pessoa não pode usar |
+| **Tela** | Só acompanha: esconde o que a pessoa não pode usar. `useAcesso()` ([`acesso.ts`](src/lib/acesso.ts)) traz as permissões calculadas pelo banco (`minhas_permissoes()`, 0032) — nunca recalcule a regra no JavaScript. Rotas usam `<ExigeAcesso>` no [`App.tsx`](src/App.tsx), e o menu, o mesmo `permite` |
 
 Regras que quebram em silêncio:
 
@@ -714,6 +714,9 @@ Regras que quebram em silêncio:
 - **Coluna nova em `crm_clinica_dados` → `grant select, update (coluna) ...
   to authenticated`.** As permissões dela são por coluna, para esconder o
   valor pago; coluna sem grant quebra a tela com "permission denied".
+- **Nunca `select('*')` em `consultas`** (0033): o valor de cada consulta
+  também é fechado, e o `*` o pede. Use `COLUNAS_CONSULTA`, de
+  [`consultas.ts`](src/lib/consultas.ts), e o valor por `valoresDasConsultas()`.
 - **O valor pago** só se lê pela visão `crm_clinica` (vem nulo sem `valores`)
   e só se grava por `definir_valor_pago()`. O tempo real (`crm_clinica_dados`)
   não manda a coluna — foi conferido.

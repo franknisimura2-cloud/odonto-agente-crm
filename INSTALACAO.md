@@ -340,7 +340,7 @@ No fim, me diga o que deu certo e o que ainda falta eu fazer.
 
 | Passo | O que é | Como saber que deu certo |
 |---|---|---|
-| **As 31 migrações** | Criam tabelas, índices, regras de segurança e as funções da agenda. O catálogo de serviços nasce **vazio** | 14 tabelas + 5 views, e os números da seção 10 do DATABASE.md (o único lugar onde eles são escritos) — as views voltam **vazias** na consulta de segurança, e a de funções traz **só** `definir_valor_pago` e `valor_pago_visivel` (qualquer outra linha é dado da empresa ao alcance de quem não devia) |
+| **As 33 migrações** | Criam tabelas, índices, regras de segurança e as funções da agenda. O catálogo de serviços nasce **vazio** | 14 tabelas + 5 views, e os números da seção 10 do DATABASE.md (o único lugar onde eles são escritos) — as views voltam **vazias** na consulta de segurança, e a de funções traz **só** as quatro dos valores pagos (qualquer outra linha é dado da empresa ao alcance de quem não devia) |
 | **Os secrets** | Sobem as chaves do arquivo para o servidor | `npm run agente:secrets` termina sem erro |
 | **As duas funções** | `whatsapp` (a Letícia) e `agenda` (a API) | Publicadas no painel do Supabase |
 | **O seu acesso** | Liga a regra de senha forte e cria o seu usuário, já confirmado, com uma **senha provisória** | Ela te mostra o e-mail e a senha provisória |

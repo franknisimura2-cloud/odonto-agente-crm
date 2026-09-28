@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAcesso } from '../lib/acesso'
 import { Link } from 'react-router-dom'
 import { CalendarClock, Check, X } from 'lucide-react'
 import {
@@ -40,6 +41,7 @@ export default function AvisoBaixaConsulta({ leadId, onBaixa, compacto = false }
   const [pendentes, setPendentes] = useState<ConsultaPendente[]>([])
   const [salvando, setSalvando] = useState<string | null>(null)
   const [erro, setErro] = useState('')
+  const acesso = useAcesso()
 
   const recarregar = useCallback(() =>
     listarConsultasPendentes(leadId)
@@ -62,6 +64,9 @@ export default function AvisoBaixaConsulta({ leadId, onBaixa, compacto = false }
     setSalvando(null)
   }
 
+  // Compareceu e Faltou mexem na agenda: sem `agenda_editar`, o aviso não
+  // serve para nada — e o banco recusaria o clique.
+  if (!acesso.pode('agenda_editar')) return null
   if (pendentes.length === 0 && !erro) return null
 
   const n = pendentes.length

@@ -10,6 +10,7 @@ import TabClinica from '../components/TabClinica'
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal'
 import { useAgente } from '../lib/agente'
 import { MARCA, MARCA_SUAVE, MARCA_CLARO, COR_PADRAO } from '../lib/marca'
+import { useAcesso, semNenhumAcesso } from '../lib/acesso'
 
 /* ──────────────────────────────────────────────
    Upload validation constants
@@ -156,6 +157,7 @@ function SaveButton({ onClick, saving, saved, disabled = false }: { onClick: () 
    ABA PERFIL
 ────────────────────────────────────────────── */
 function TabPerfil({ userId }: { userId: string }) {
+  const podeConfigurar = useAcesso().pode('configurar')
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [clinica, setClinica] = useState<ConfiguracoesClinica | null>(null)
   const [nome, setNome] = useState('')
@@ -427,7 +429,8 @@ function TabPerfil({ userId }: { userId: string }) {
         <ErrorMsg msg={avatarError} />
       </SectionCard>
 
-      {/* Logo da clínica */}
+      {/* Logo da clínica — só para quem configura: o banco recusa a de quem não pode */}
+      {podeConfigurar && (
       <SectionCard title="Logo da Empresa">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
@@ -463,6 +466,7 @@ function TabPerfil({ userId }: { userId: string }) {
         </div>
         <ErrorMsg msg={logoError} />
       </SectionCard>
+      )}
 
       {/* Alterar Senha */}
       <SectionCard title="Alterar Senha">
@@ -794,6 +798,9 @@ function TabHorarios() {
 export default function Configuracoes() {
   const [activeTab, setActiveTab] = useState<TabKey>('perfil')
   const [userId, setUserId] = useState<string | null>(null)
+  // Perfil é de todo mundo; Empresa e Horários, de quem configura.
+  const acesso = useAcesso()
+  const abas = TABS.filter(({ key }) => key === 'perfil' || acesso.pode('configurar'))
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -810,9 +817,19 @@ export default function Configuracoes() {
         <p style={{ fontSize: 13, color: '#6B818C', marginTop: 4 }}>Gerencie suas informações e os dados da empresa.</p>
       </div>
 
+      {/* Quem ainda não recebeu acesso nenhum cai aqui (ver `primeiraTela`):
+          sem este aviso, a pessoa entra num sistema vazio e acha que quebrou. */}
+      {semNenhumAcesso(acesso) && (
+        <div className="fade-in-1" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '14px 16px', marginBottom: 20, fontSize: 13.5, color: '#92400E', lineHeight: 1.55 }}>
+          <strong>Seu acesso ainda não foi liberado.</strong> Você já pode ajustar
+          seu nome, sua foto e sua senha aqui. O resto do sistema aparece assim
+          que a administradora escolher o que você vai usar.
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="fade-in-2" style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #DCE6EA' }}>
-        {TABS.map(({ key, label, icon: Icon }) => (
+        {abas.map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
             style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: activeTab === key ? 700 : 500, color: activeTab === key ? MARCA : '#6B818C', borderBottom: activeTab === key ? `2px solid ${MARCA}` : '2px solid transparent', fontFamily: "'Plus Jakarta Sans', sans-serif", transition: 'color 0.15s', marginBottom: -1 }}>
             <Icon size={15} /> {label}
@@ -823,8 +840,8 @@ export default function Configuracoes() {
       {/* Tab content */}
       <div className="fade-in-3">
         {activeTab === 'perfil' && userId && <TabPerfil userId={userId} />}
-        {activeTab === 'clinica' && <TabClinica />}
-        {activeTab === 'horarios' && <TabHorarios />}
+        {activeTab === 'clinica' && acesso.pode('configurar') && <TabClinica />}
+        {activeTab === 'horarios' && acesso.pode('configurar') && <TabHorarios />}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

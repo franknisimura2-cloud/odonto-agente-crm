@@ -20,6 +20,7 @@ import {
 import type { LeadClinica, LeadStatus, Profissional } from '../types'
 import { MARCA, MARCA_SUAVE, MARCA_CLARO, MARCA_ESCURO, corDoSistemaAtual } from '../lib/marca'
 import { useTelaPequena } from '../lib/useTelaPequena'
+import { useAcesso } from '../lib/acesso'
 
 /** '#1E6E8C' → [30, 110, 140], para o jsPDF. */
 function rgbDe(hex: string): [number, number, number] {
@@ -579,6 +580,8 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
   // No celular a tabela de seis colunas vira cartões, e as duas frases de
   // explicação do cabeçalho saem: quem abre Leads no celular já sabe o que é.
   const pequena = useTelaPequena()
+  // Exportar tira a lista inteira do sistema: é permissão à parte.
+  const podeExportar = useAcesso().pode('exportar')
 
   const [allLeads, setAllLeads] = useState<LeadClinica[]>([])
   const [loading, setLoading] = useState(true)
@@ -853,6 +856,7 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
             onBlur={(e) => (e.target.style.borderColor = '#DCE6EA')}
           />
         </div>
+        {podeExportar && <>
         <button onClick={exportCSV} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, border: '1px solid #DCE6EA', background: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#16232B', fontFamily: "'Plus Jakarta Sans', sans-serif", transition: 'background 0.15s' }}
           onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = '#F2F6F7')}
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = '#fff')}>
@@ -863,6 +867,7 @@ export default function PessoasPage({ mode }: { mode: PessoasMode }) {
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = '#fff')}>
           <FileText size={15} /> Exportar PDF
         </button>
+        </>}
       </div>
 
       {/* Table */}
