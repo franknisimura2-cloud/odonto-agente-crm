@@ -690,7 +690,9 @@ Regras que quebram em silêncio se esquecidas:
 
 ### Níveis de acesso (migração 0031)
 
-Cada usuário tem um **papel** — `dona`, `recepcao`, `profissional` — e, por
+Cada usuário tem um **papel** — `dona`, `recepcao`, `profissional` (na tela: **Admin**,
+Recepção, Profissional — o valor interno continua `dona`; o nome de tela mora
+em `NOME_DO_PAPEL`, [`equipe.ts`](src/lib/equipe.ts)) — e, por
 cima dele, permissões que a dona liga e desliga (`usuarios.permissoes`). As
 permissões são `dashboard`, `valores`, `conversas`, `agenda_todas`,
 `agenda_editar`, `pessoas`, `crm`, `exportar`, `configurar` e `equipe`; a

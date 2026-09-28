@@ -124,7 +124,7 @@ function Pessoa({ m, profs, souDona, meuId, onMudou, onSenha }: {
       {aberta && (
         <div style={{ marginTop: 16, borderTop: '1px solid #EDF2F4', paddingTop: 16 }}>
           {!podeMexer && (
-            <div style={{ fontSize: 13, color: '#6B818C', marginBottom: 12 }}>Só uma dona mexe no acesso de uma dona.</div>
+            <div style={{ fontSize: 13, color: '#6B818C', marginBottom: 12 }}>Só quem é admin mexe no acesso de outro admin.</div>
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
@@ -152,7 +152,7 @@ function Pessoa({ m, profs, souDona, meuId, onMudou, onSenha }: {
           </div>
 
           {ehDona ? (
-            <div style={{ fontSize: 13, color: '#6B818C', marginBottom: 12 }}>A dona tem acesso a tudo, sempre.</div>
+            <div style={{ fontSize: 13, color: '#6B818C', marginBottom: 12 }}>Admin tem acesso a tudo, sempre.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
               {PERMISSOES.map(({ chave, nome, explica }) => (

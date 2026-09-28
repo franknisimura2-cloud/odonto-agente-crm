@@ -829,7 +829,7 @@ export default function Configuracoes() {
         <div className="fade-in-1" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '14px 16px', marginBottom: 20, fontSize: 13.5, color: '#92400E', lineHeight: 1.55 }}>
           <strong>Seu acesso ainda não foi liberado.</strong> Você já pode ajustar
           seu nome, sua foto e sua senha aqui. O resto do sistema aparece assim
-          que a administradora escolher o que você vai usar.
+          que o admin da empresa escolher o que você vai usar.
         </div>
       )}
 

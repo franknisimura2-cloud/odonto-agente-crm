@@ -38,8 +38,10 @@ export const PERMISSOES: { chave: Permissao; nome: string; explica: string }[] =
   { chave: 'equipe', nome: 'Equipe', explica: 'Adicionar pessoas e mudar os acessos' },
 ]
 
+// Na tela o papel 'dona' se chama Admin. O valor no banco continua 'dona':
+// nome interno não muda (migrações, políticas e testes dependem dele).
 export const NOME_DO_PAPEL: Record<Papel, string> = {
-  dona: 'Dona',
+  dona: 'Admin',
   recepcao: 'Recepção',
   profissional: 'Profissional',
 }
@@ -53,8 +55,8 @@ export async function listarEquipe(): Promise<Membro[]> {
 /** Uma mensagem para a dona, a partir do erro do banco ou da função. */
 export function motivoLegivel(motivo: string | undefined): string {
   if (!motivo) return 'Não deu certo. Tente de novo.'
-  if (motivo.includes('ultima_dona')) return 'A empresa precisa de pelo menos uma dona ativa.'
-  if (motivo.includes('so_dona') || motivo.includes('só uma dona')) return 'Só uma dona pode mexer no acesso de uma dona.'
+  if (motivo.includes('ultima_dona')) return 'A empresa precisa de pelo menos um admin ativo.'
+  if (motivo.includes('so_dona') || motivo.includes('só uma dona')) return 'Só quem é admin pode mexer no acesso de outro admin.'
   if (motivo.includes('sem_permissao')) return 'Você não tem permissão para mudar acessos.'
   if (motivo === 'email_existe') return 'Já existe um login com esse e-mail.'
   if (motivo === 'profissional_ja_tem_login') return 'Essa profissional já tem um login.'
