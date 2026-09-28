@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from './supabase'
+import { supabase, SUPABASE_URL } from './supabase'
 import type { ModeloAgente } from '../types'
 
 /**
@@ -30,7 +30,7 @@ import type { ModeloAgente } from '../types'
  * `supabase/functions/_shared/llm.ts`. Nada sincroniza isso sozinho.
  */
 
-const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp`
+const BASE = `${SUPABASE_URL}/functions/v1/whatsapp`
 
 export type FornecedorIA = 'openai' | 'anthropic'
 

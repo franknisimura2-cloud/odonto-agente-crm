@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, SUPABASE_URL } from './supabase'
 import { rotuloDoAgente } from './agente'
 import type {
   ConversaResumo, MensagemWhatsapp, TipoMensagem, AutorMensagem,
@@ -60,7 +60,7 @@ export async function enviarMensagem(leadId: string, texto: string): Promise<voi
   if (!token) throw new Error('sessão expirada')
 
   const r = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp/enviar`,
+    `${SUPABASE_URL}/functions/v1/whatsapp/enviar`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -282,7 +282,7 @@ export async function fotoDoPerfil(whatsapp: string): Promise<string | null> {
     if (!token) return null
 
     const r = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp/foto?whatsapp=${whatsapp}`,
+      `${SUPABASE_URL}/functions/v1/whatsapp/foto?whatsapp=${whatsapp}`,
       { headers: { Authorization: `Bearer ${token}` } },
     )
     const dados = await r.json()

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from './supabase'
+import { supabase, SUPABASE_URL } from './supabase'
 
 /**
  * A conexão com o WhatsApp: está de pé, quem está conectado, e como religar.
@@ -21,7 +21,7 @@ import { supabase } from './supabase'
  * Mesmo motivo da `fotoDoPerfil()`, em `conversas.ts`.
  */
 
-const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp`
+const BASE = `${SUPABASE_URL}/functions/v1/whatsapp`
 
 /**
  * `desconectado` e `indisponivel` parecem a mesma coisa e **não são** — cada um

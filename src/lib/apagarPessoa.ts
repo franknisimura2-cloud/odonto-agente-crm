@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, SUPABASE_URL } from './supabase'
 import { buscarPorWhatsapp, type PessoaResumo } from './contatos'
 
 /**
@@ -88,7 +88,7 @@ export async function apagarPessoa(leadId: string): Promise<number> {
   if (!token) throw new Error('sem_sessao')
 
   const r = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp/apagar-pessoa`,
+    `${SUPABASE_URL}/functions/v1/whatsapp/apagar-pessoa`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

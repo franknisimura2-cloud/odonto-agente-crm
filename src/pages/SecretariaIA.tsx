@@ -4,7 +4,7 @@ import {
   Save, Check, Power, Bot, Trash2, Plus, AlertTriangle, FileText, X,
   ChevronDown, ChevronUp, Lock, CircleAlert,
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, SUPABASE_URL } from '../lib/supabase'
 import CampoTelefone from '../components/CampoTelefone'
 import { formatarParaExibicao } from '../lib/telefones'
 import { useAgente, AGENTE_PAGINA } from '../lib/agente'
@@ -235,7 +235,7 @@ export default function SecretariaIA() {
       const { data: sessao } = await supabase.auth.getSession()
       const token = sessao.session?.access_token
       const r = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp/prompt-oficial`,
+        `${SUPABASE_URL}/functions/v1/whatsapp/prompt-oficial`,
         { headers: { Authorization: `Bearer ${token}` } },
       )
       const dados = await r.json()

@@ -10,6 +10,8 @@
  * Contrato completo dos endpoints: `API_AGENTE.md`, na raiz do repositório.
  */
 
+import { SUPABASE_URL } from './supabase'
+
 const PREFIXO = 'odk_'
 const ALFABETO = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 const TAMANHO = 40
@@ -161,7 +163,7 @@ export const ENDPOINTS: EndpointApi[] = [
 ]
 
 /** Endereço da função implantada, derivado da mesma env var do cliente Supabase. */
-export const BASE_API = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agenda`
+export const BASE_API = `${SUPABASE_URL}/functions/v1/agenda`
 
 /**
  * cURL pronto para o **Import cURL** do nó HTTP do n8n, que monta o nó sozinho.

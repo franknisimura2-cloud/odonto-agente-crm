@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!clinicas/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/clinicas/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
   ]
 }

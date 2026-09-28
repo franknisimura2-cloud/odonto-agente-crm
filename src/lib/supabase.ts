@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
+import { clinicaAtual } from './clinica'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// O banco é o da clínica deste endereço (ver `clinica.ts`). Este arquivo só é
+// importado depois de `descobrirClinica()` — o `main.tsx` garante a ordem.
+const { supabaseUrl, anonKey } = clinicaAtual()
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+/** A raiz do projeto Supabase da clínica — é daqui que saem as URLs das funções. */
+export const SUPABASE_URL = supabaseUrl
+
+export const supabase = createClient(supabaseUrl, anonKey)

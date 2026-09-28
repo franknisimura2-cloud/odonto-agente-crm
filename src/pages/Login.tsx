@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock, CircleDot, MessageCircle, CalendarDays, Kanban
 import { supabase } from '../lib/supabase'
 import { NOME_DO_SISTEMA, MARCA, MARCA_ESCURO, MARCA_SUAVE, MARCA_CLARO, marcaComAlfa } from '../lib/marca'
 import { AGENTE_PAGINA } from '../lib/agente'
+import { clinicaAtual } from '../lib/clinica'
 
 const MAX_ATTEMPTS = 5
 const LOCKOUT_SECONDS = 30
@@ -20,8 +21,9 @@ const FONT = "'Plus Jakarta Sans', sans-serif"
 
 /* O que o sistema faz, no painel da marca.
    Fica fixo aqui de propósito: esta tela é PRÉ-LOGIN, e o RLS bloqueia
-   qualquer leitura do banco sem usuário autenticado — nome da empresa e
-   serviços cadastrados não chegam aqui. */
+   qualquer leitura do banco sem usuário autenticado — os serviços cadastrados
+   não chegam aqui. O NOME da empresa chega, mas por outro caminho: a ficha
+   pública do endereço (`lib/clinica.ts`), e não o banco. */
 const PILARES = [
   { Icon: MessageCircle, nome: `${AGENTE_PAGINA} no WhatsApp`, desc: 'Responde, tira dúvidas e agenda, 24 horas' },
   { Icon: CalendarDays, nome: 'Agenda da equipe', desc: 'Todos os profissionais num só calendário' },
@@ -37,6 +39,9 @@ export default function Login() {
   const [attempts, setAttempts] = useState(0)
   const [lockout, setLockout] = useState(0) // seconds remaining
   const navigate = useNavigate()
+  // O nome da ficha da clínica deste endereço; sem ficha (localhost, Vercel),
+  // o do produto.
+  const nomeNaEntrada = clinicaAtual().nome.trim() || NOME_DO_SISTEMA
 
   // Countdown timer during lockout
   useEffect(() => {
@@ -158,7 +163,7 @@ export default function Login() {
             </div>
             <div>
               <div style={{ fontSize: 19, fontWeight: 700, color: '#fff', letterSpacing: -0.2 }}>
-                {NOME_DO_SISTEMA}
+                {nomeNaEntrada}
               </div>
               <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.72)', marginTop: 1 }}>
                 CRM e atendimento com IA
@@ -218,7 +223,7 @@ export default function Login() {
             }}>
               <CircleDot size={25} strokeWidth={1.7} style={{ color: MARCA }} />
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: TEXT }}>{NOME_DO_SISTEMA}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: TEXT }}>{nomeNaEntrada}</div>
           </div>
 
           <h1 style={{ fontSize: 25, fontWeight: 700, color: TEXT, margin: 0, letterSpacing: -0.4 }}>

@@ -655,6 +655,39 @@ está ali, e o "ver todos" leva à lista com o mesmo `?etapa=`. **Não há
 arrastar no celular, de propósito**: mover de etapa continua no computador e
 na ficha. **Leads e Clientes** viram cartões (o cartão inteiro abre a ficha).
 
+### Várias clínicas: um site, um banco por clínica
+
+O Núcleo é comercializado como **uma instalação por clínica** — um projeto
+Supabase para cada uma (banco, login, funções, WhatsApp) — com **uma tela só**
+para todas. Cada clínica tem um endereço (`clinica.seudominio.com.br`), e é o
+endereço que diz qual banco abrir.
+
+| Peça | Onde |
+|---|---|
+| A ficha de cada clínica: nome, URL e chave **pública** do Supabase, situação, cor | `public/clinicas/<endereço>.json` |
+| Quem lê a ficha e decide | [`clinica.ts`](src/lib/clinica.ts) |
+| O cliente do Supabase, criado com a ficha | [`supabase.ts`](src/lib/supabase.ts) — e o `SUPABASE_URL` que as funções usam |
+| A ordem: descobrir a clínica, **depois** carregar o sistema | [`main.tsx`](src/main.tsx) |
+| A tela de "acesso suspenso" e de "endereço não encontrado" | [`TelaAviso.tsx`](src/components/TelaAviso.tsx) |
+
+Regras que quebram em silêncio se esquecidas:
+
+- **Nada importado no topo do `main.tsx` pode importar o Supabase**, nem
+  indiretamente. O `App` entra com `import()` depois de `descobrirClinica()`;
+  um `import` estático criaria o cliente antes de saber qual banco.
+- **Ninguém lê `import.meta.env.VITE_SUPABASE_URL` direto.** Use
+  `SUPABASE_URL`, de `supabase.ts`. O `.env` só vale em `localhost` e
+  `*.vercel.app` (desenvolvimento e links de teste), e só quando não há ficha.
+- **Endereço sem ficha, fora desses dois, NÃO cai no `.env`**: com o domínio
+  coringa, um endereço inventado abriria o banco de outra clínica. A tela diz
+  que o endereço não existe.
+- **Um arquivo por clínica, nunca uma lista.** A lista inteira no site seria a
+  carteira de clientes para quem abrisse o JavaScript.
+- **Suspender** é trocar `"situacao": "ativa"` por `"suspensa"` na ficha e
+  publicar: o próximo F5 mostra o aviso. As fichas saem com `no-store`
+  ([`vercel.json`](vercel.json)), e o rewrite do `vercel.json` não alcança
+  `/clinicas/` — ficha que não existe responde 404, e não a página do sistema.
+
 ### Instalar como aplicativo
 
 O sistema é instalável ("Adicionar à tela inicial"), e abre sem a barra do
