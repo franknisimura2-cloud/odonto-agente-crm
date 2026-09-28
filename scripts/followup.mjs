@@ -26,6 +26,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { clinicaDaLinhaDeComando, clinicaPorId, clinicaPorRef } from '../agente-ia/clinicas.mjs'
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 const MANAGEMENT = 'https://api.supabase.com/v1'
@@ -109,10 +110,14 @@ async function exigirMigracao() {
 async function ligar() {
   await exigirMigracao()
 
-  const agente = ler(join(RAIZ, 'agente-ia', '.env.agente.local'))
-  const segredo = agente?.WEBHOOK_SEGREDO
+  // O segredo do kit da clínica (clinicas/<nome>/); instalação avulsa ainda
+  // usa o de agente-ia/. `-- --clinica <nome>` escolhe; sem ele, vale o ref.
+  const pedida = clinicaDaLinhaDeComando()
+  const clinica = pedida !== null ? clinicaPorId(pedida) : clinicaPorRef(REF)
+  const kit = clinica ? join(clinica.pasta, '.env.agente.local') : join(RAIZ, 'agente-ia', '.env.agente.local')
+  const segredo = ler(kit)?.WEBHOOK_SEGREDO
   if (!segredo) {
-    morrer('WEBHOOK_SEGREDO está vazio em agente-ia/.env.agente.local.\n\n'
+    morrer(`WEBHOOK_SEGREDO está vazio em ${kit.replace(RAIZ, '.')}.\n\n`
       + '     É o mesmo segredo do webhook: a rota /follow-up recusa quem chega\n'
       + '     sem ele, senão qualquer um faria a agente escrever para os seus\n'
       + '     contatos. O npm run instalar:conferir também acusa esta falta.')

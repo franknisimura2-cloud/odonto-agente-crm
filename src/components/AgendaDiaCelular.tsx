@@ -152,6 +152,14 @@ export default function AgendaDiaCelular({
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: cor }} />
                       {prof ? `${prof.nome}${prof.sobrenome ? ` ${prof.sobrenome}` : ''}` : 'Sem profissional'}
                     </span>
+                    {c.status === 'agendada' && c.confirmada_em && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                        background: '#E8F8EF', color: '#1A7A48',
+                      }}>
+                        ✓ Confirmada
+                      </span>
+                    )}
                     {c.status !== 'agendada' && status && (
                       <span style={{
                         fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,

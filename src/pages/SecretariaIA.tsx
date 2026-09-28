@@ -129,6 +129,43 @@ function Erro({ texto }: { texto: string }) {
   )
 }
 
+/** Os campos de lembrete de `configuracoes_agente`, na ordem em que a tela os edita. */
+type Lembretes = Pick<ConfiguracoesAgente,
+  'lembretes_ativo' | 'lembrete_vespera_ativo' | 'lembrete_vespera_horas' |
+  'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao'>
+
+const LEMBRETES_PADRAO: Lembretes = {
+  lembretes_ativo: false,
+  lembrete_vespera_ativo: true,
+  lembrete_vespera_horas: 24,
+  lembrete_antes_ativo: true,
+  lembrete_antes_minutos: 30,
+  lembrete_pedir_confirmacao: true,
+}
+
+function lembretesDe(c: ConfiguracoesAgente): Lembretes {
+  return {
+    lembretes_ativo: c.lembretes_ativo ?? false,
+    lembrete_vespera_ativo: c.lembrete_vespera_ativo ?? true,
+    lembrete_vespera_horas: c.lembrete_vespera_horas ?? 24,
+    lembrete_antes_ativo: c.lembrete_antes_ativo ?? true,
+    lembrete_antes_minutos: c.lembrete_antes_minutos ?? 30,
+    lembrete_pedir_confirmacao: c.lembrete_pedir_confirmacao ?? true,
+  }
+}
+
+const OPCOES_VESPERA = [2, 3, 6, 12, 24, 48]
+const OPCOES_ANTES = [15, 30, 60, 120, 180]
+
+function rotuloMinutos(m: number): string {
+  return m < 60 ? `${m} minutos` : m === 60 ? '1 hora' : `${m / 60} horas`
+}
+
+const seletorLembrete: React.CSSProperties = {
+  padding: '6px 10px', borderRadius: 8, border: '1px solid #DCE6EA',
+  fontSize: 13, fontFamily: FONTE, color: '#16232B', background: '#fff',
+}
+
 export default function SecretariaIA() {
   const { nome: nomeAgente, titulo: agenteTitulo, porExtenso: agentePorExtenso } = useAgente()
   const [cfg, setCfg] = useState<ConfiguracoesAgente | null>(null)
@@ -142,6 +179,7 @@ export default function SecretariaIA() {
   const [modoTeste, setModoTeste] = useState(true)
   const [numeros, setNumeros] = useState<string[]>([])
   const [prompt, setPrompt] = useState<string | null>(null)
+  const [lemb, setLemb] = useState<Lembretes>(LEMBRETES_PADRAO)
 
   const {
     conexao, recarregar: recarregarConexao, verificando, verificadoEm, intervaloMs,
@@ -168,6 +206,7 @@ export default function SecretariaIA() {
           setModoTeste(c.modo_teste)
           setNumeros(c.numeros_teste ?? [])
           setPrompt(c.prompt)
+          setLemb(lembretesDe(c))
         }
         setCarregando(false)
       })
@@ -205,6 +244,7 @@ export default function SecretariaIA() {
         modelo,
         modo_teste: modoTeste,
         numeros_teste: numeros,
+        ...lemb,
         // `prompt` NÃO entra aqui. A tela só mostra; quem edita é a IA da IDE,
         // pelo `agente-ia/prompt.md`. Gravar daqui reabriria a porta que a
         // decisão de produto fechou — e sem passar pelo Git.
@@ -329,6 +369,7 @@ export default function SecretariaIA() {
     if (numeros.join(',') !== (cfg.numeros_teste ?? []).join(',')) {
       alteracoes.push('os números de teste')
     }
+    if (JSON.stringify(lemb) !== JSON.stringify(lembretesDe(cfg))) alteracoes.push('os lembretes')
   }
   const alterado = alteracoes.length > 0
 
@@ -706,6 +747,89 @@ export default function SecretariaIA() {
             desligue quando o prompt já tiver sido testado de verdade.
           </Aviso>
         )}
+      </div>
+
+      {/* ---------------- Lembretes de agendamento ----------------
+
+          O texto é fixo (sem IA) e o envio segue as mesmas travas da
+          conversa: agente ligada e modo teste respeitado. Quem decide quem
+          recebe é a `lembretes_pendentes()` (migração 0037). */}
+      <div className="cartao" style={cartao}>
+        <div style={titulo}>Lembretes de agendamento</div>
+        <p style={{ ...legenda, marginBottom: 16 }}>
+          A {nomeAgente} avisa quem tem horário marcado — e pode pedir para a pessoa confirmar
+          a presença respondendo SIM. Quem confirma ganha o selo <strong>Confirmada</strong> na Agenda.
+        </p>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
+          <input type="checkbox" checked={lemb.lembretes_ativo}
+            onChange={(e) => setLemb({ ...lemb, lembretes_ativo: e.target.checked })}
+            style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#16232B' }}>
+            Enviar lembretes
+          </span>
+        </label>
+
+        <fieldset disabled={!lemb.lembretes_ativo} style={{
+          border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12,
+          opacity: lemb.lembretes_ativo ? 1 : 0.55,
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input type="checkbox" checked={lemb.lembrete_vespera_ativo}
+                onChange={(e) => setLemb({ ...lemb, lembrete_vespera_ativo: e.target.checked })}
+                style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+              <span style={{ fontSize: 13.5, color: '#16232B' }}>Lembrete antecipado</span>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 26 }}>
+              <select value={lemb.lembrete_vespera_horas} disabled={!lemb.lembrete_vespera_ativo}
+                onChange={(e) => setLemb({ ...lemb, lembrete_vespera_horas: Number(e.target.value) })}
+                style={seletorLembrete}>
+                {[...new Set([...OPCOES_VESPERA, lemb.lembrete_vespera_horas])].sort((a, b) => a - b).map((h) => (
+                  <option key={h} value={h}>{h === 24 ? '1 dia' : h === 48 ? '2 dias' : `${h} horas`}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: 13.5, color: '#16232B' }}>antes da consulta</span>
+            </div>
+          </div>
+
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginLeft: 26,
+            opacity: lemb.lembrete_vespera_ativo ? 1 : 0.55,
+          }}>
+            <input type="checkbox" checked={lemb.lembrete_pedir_confirmacao}
+              disabled={!lemb.lembrete_vespera_ativo}
+              onChange={(e) => setLemb({ ...lemb, lembrete_pedir_confirmacao: e.target.checked })}
+              style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+            <span style={{ fontSize: 13, color: '#3A5560' }}>Pedir confirmação de presença (responder SIM)</span>
+          </label>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <input type="checkbox" checked={lemb.lembrete_antes_ativo}
+                onChange={(e) => setLemb({ ...lemb, lembrete_antes_ativo: e.target.checked })}
+                style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+              <span style={{ fontSize: 13.5, color: '#16232B' }}>Lembrete em cima da hora</span>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 26 }}>
+              <select value={lemb.lembrete_antes_minutos} disabled={!lemb.lembrete_antes_ativo}
+                onChange={(e) => setLemb({ ...lemb, lembrete_antes_minutos: Number(e.target.value) })}
+                style={seletorLembrete}>
+                {[...new Set([...OPCOES_ANTES, lemb.lembrete_antes_minutos])].sort((a, b) => a - b).map((m) => (
+                  <option key={m} value={m}>{rotuloMinutos(m)}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: 13.5, color: '#16232B' }}>antes da consulta</span>
+            </div>
+          </div>
+        </fieldset>
+
+        <p style={{ ...legenda, marginTop: 14 }}>
+          O lembrete antecipado só sai no horário comercial da {nomeAgente}; o de cima da hora sai
+          a qualquer hora. Quem marcou em cima da hora não recebe lembrete do que acabou de combinar,
+          e quem pediu para não ser procurado não recebe nada.
+          {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
+        </p>
       </div>
 
       {/* ---------------- Ligar e desligar ----------------

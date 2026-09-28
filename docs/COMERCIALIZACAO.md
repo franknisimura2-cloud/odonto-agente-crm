@@ -19,6 +19,7 @@ fica o lado de negócio e a ordem das coisas.
 | **Fase 1** — um site, um endereço por clínica | ✔ No ar |
 | **Fase 2** — a atendente de cada clínica em `clinicas/<nome>/` | ✔ Pronta |
 | **Níveis de acesso** — dona, recepção, profissional, com permissões por pessoa e a aba Equipe | ✔ No ar (migrações 0031–0035) |
+| **Lembretes de agendamento** com confirmação por SIM e selo "Confirmada" na Agenda | ✔ No ar (migração 0037) — desligados por padrão, cada clínica liga na tela |
 | **Fase 3** — `clinica:nova`: criar uma clínica inteira com um comando | ⏭ Próxima |
 | Fases 4 a 7 | Ver seção 4 |
 
@@ -118,14 +119,15 @@ Um comando que recebe o nome da clínica (e o kit de origem) e faz, na ordem:
    região `sa-east-1`, senha do banco gerada e mostrada uma vez) e espera ficar
    `ACTIVE_HEALTHY`.
 2. **Busca a chave pública** (`/v1/projects/{ref}/api-keys`).
-3. **Aplica as 30 migrações** em ordem, pela rota `database/query` — o mesmo
+3. **Aplica todas as migrações** em ordem (hoje, 37), pela rota `database/query` — o mesmo
    caminho que a instalação da clínica atual usou — e roda as consultas de
    segurança da seção 10 do [`DATABASE.md`](../DATABASE.md) (as duas têm que
    voltar vazias).
 4. **Cria `clinicas/<nome>/`** a partir do kit (prompt, descritor,
    `clinica.json` com o `supabase_ref`) e o `.env.agente.local` com o segredo
    do webhook gerado; as chaves da OpenAI e da uazapi são coladas pelo Frank.
-5. **Sobe os secrets e publica as duas funções** com `--clinica <nome>`.
+5. **Sobe os secrets e publica as duas funções** com `--clinica <nome>`, e
+   liga os relógios (`followup:ligar` e `lembretes:ligar`, com `--clinica`).
 6. **Roda o `servicos.sql`** do kit.
 7. **Cria os logins** (a lógica do `npm run instalar:usuario`, apontada para o
    projeto novo).

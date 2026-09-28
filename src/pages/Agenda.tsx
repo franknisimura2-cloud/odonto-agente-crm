@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, X, Clock, User, BriefcaseBusiness, ArrowRight, Ban,
-  Check, UserX,
+  Check, UserX, CircleCheck,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -58,6 +58,7 @@ function DetalheConsulta({
   const [cancelando, setCancelando] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
   const [dandoBaixa, setDandoBaixa] = useState(false)
+  const [marcandoConfirmacao, setMarcandoConfirmacao] = useState(false)
   const [erro, setErro] = useState('')
 
   const inicio = inicioDaConsulta(consulta)
@@ -92,6 +93,22 @@ function DetalheConsulta({
     setDandoBaixa(false)
     onCancelada({ ...consulta, status: compareceu ? 'realizada' : 'faltou' })
     onFechar()
+  }
+
+  /**
+   * A recepção marca (ou desmarca) a confirmação à mão — quem confirmou por
+   * telefone, ou o SIM que chegou de outro jeito. O mesmo campo que o SIM ao
+   * lembrete preenche (migração 0037).
+   */
+  const alternarConfirmacao = async () => {
+    setMarcandoConfirmacao(true); setErro('')
+    const nova = consulta.confirmada_em ? null : new Date().toISOString()
+    const { error } = await supabase.from('consultas')
+      .update({ confirmada_em: nova })
+      .eq('id', consulta.id)
+    setMarcandoConfirmacao(false)
+    if (error) { setErro('Não consegui salvar. Tente de novo.'); return }
+    onCancelada({ ...consulta, confirmada_em: nova })
   }
 
   const handleCancelar = async () => {
@@ -149,12 +166,24 @@ function DetalheConsulta({
                 color: STATUS_CONSULTA[consulta.status].color }}>
                 {ROTULO_CONSULTA[consulta.status]}
               </span>
+              {consulta.status === 'agendada' && consulta.confirmada_em && (
+                <span title={`Confirmada em ${new Date(consulta.confirmada_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: '#E8F8EF', color: '#1A7A48' }}>
+                  <CircleCheck size={12} /> Confirmada
+                </span>
+              )}
               {consulta.origem === 'agente_ia' && (
                 <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: MARCA_SUAVE, color: MARCA }}>
                   Agente de IA
                 </span>
               )}
             </div>
+            {podeEditar && consulta.status === 'agendada' && !jaAconteceu && (
+              <button onClick={alternarConfirmacao} disabled={marcandoConfirmacao}
+                style={{ alignSelf: 'flex-start', marginLeft: 23, background: 'none', border: 'none', padding: 0, cursor: marcandoConfirmacao ? 'wait' : 'pointer', fontSize: 12.5, fontWeight: 600, color: consulta.confirmada_em ? '#6B818C' : '#1A7A48', fontFamily: "'Plus Jakarta Sans', sans-serif", textDecoration: 'underline' }}>
+                {consulta.confirmada_em ? 'Desfazer confirmação' : 'Marcar como confirmada'}
+              </button>
+            )}
             {consulta.observacoes && (
               <div style={{ fontSize: 12.5, color: '#6B818C', lineHeight: 1.6, background: '#F7FAFB', borderRadius: 8, padding: '9px 12px', marginTop: 2 }}>
                 {consulta.observacoes}

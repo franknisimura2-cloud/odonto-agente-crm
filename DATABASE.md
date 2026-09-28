@@ -250,6 +250,13 @@ nesta ordem** — cada um depende do anterior:
     consulta, e o período termina hoje: o que era marcado para os próximos
     dias sumia do gráfico.
 
+37. `supabase/migrations/0037_lembretes.sql` — lembretes de agendamento com
+    confirmação de presença: os campos `lembrete_*` em `configuracoes_agente`
+    (nascem com `lembretes_ativo = false`), `consultas.confirmada_em` (volta a
+    nulo quando a data muda), a tabela `agente_lembretes`, e as funções
+    `lembretes_pendentes()`, `confirmar_presenca()` e `disparar_lembretes()`.
+    Ver a seção 4.21.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -1815,6 +1822,47 @@ fila.
 
 ---
 
+### 4.21. `agente_lembretes` e `consultas.confirmada_em` (migração `0037`)
+
+A agente avisa quem tem horário marcado, e o SIM da pessoa vira o selo
+**Confirmada** na Agenda. Mesmo desenho do follow-up: a política inteira mora
+em `lembretes_pendentes()`, o `pg_cron` chama `disparar_lembretes()` a cada
+minuto e ela só acorda a Edge Function (`POST /whatsapp/lembretes`) quando há
+fila.
+
+| Peça | O que é |
+|---|---|
+| `configuracoes_agente.lembretes_ativo` | A chave geral. **Nasce `false`**: instalação com consultas futuras de gente de verdade não começa a mandar mensagem sozinha. Liga-se na tela Atendente de IA |
+| `lembrete_vespera_ativo` / `_horas` | O lembrete antecipado — padrão 24 h (2 a 72). Só sai dentro da janela `followup_inicio`–`followup_fim` |
+| `lembrete_antes_ativo` / `_minutos` | O de cima da hora — padrão 30 min (10 a 360). A qualquer hora |
+| `lembrete_pedir_confirmacao` | O antecipado termina com "responda SIM" |
+| `consultas.confirmada_em` | Quando confirmou (SIM ou a equipe, à mão). O gatilho `consultas_limpa_confirmacao` zera quando a data muda |
+| `agente_lembretes` | Uma linha por lembrete enviado: `(consulta_id, etapa, para_data)` é `unique` e serve de reserva, como em `agente_followups` |
+
+**As travas** (todas em `lembretes_pendentes()`): só consulta `agendada` e
+futura; um lembrete por etapa por data (remarcou, a data nova ganha os dela);
+não lembra do que acabou de ser marcado (`created_at` depois do momento do
+lembrete); o antecipado não sai a menos de 1 h do "antes"; `nao_perturbe` não
+recebe; e `agente_deve_responder()` — agente ligada e modo teste respeitado.
+
+**A confirmação.** O webhook, depois da espera, lê a rajada da pessoa. Se é um
+"sim" (`_shared/lembretes.ts`, `lerConfirmacao`), chama
+`confirmar_presenca(lead)`, que só marca a consulta cujo lembrete antecipado
+**pediu** confirmação para aquela data. Só "sim" e cortesia: resposta fixa
+("Presença confirmada! Te esperamos amanhã…") e a agente não entra. "Sim" mais
+uma pergunta: confirma, e a agente responde o resto. Sem lembrete esperando, o
+"sim" segue para a agente como qualquer mensagem.
+
+O texto dos lembretes é **fixo** (sem modelo de IA) e fica gravado em
+`agente_lembretes.texto` e na conversa, como mensagem da agente. Como quem tem
+hora marcada não recebe follow-up, os dois não se atropelam.
+
+As três funções são só da `service_role`: expõem telefone, mudam consulta ou
+fazem a agente falar. O relógio é `npm run lembretes:ligar` (endereço no Vault
+como `lembretes_url`; o segredo é o mesmo `followup_segredo`).
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -1935,7 +1983,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 14 tabelas**. São 15 políticas:
+RLS está **ativo nas 15 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -2387,7 +2435,8 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 14 tabelas + 5 views)
+-- Objetos criados (esperado: 15 tabelas + 5 views, mais a `_migracoes_aplicadas`
+-- de quem usa o scripts/aplicar-migracoes.mjs)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
 
@@ -2396,7 +2445,7 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 38 — 28 em public + 10 em storage)
+-- Políticas (esperado: 39 — 29 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
@@ -2404,7 +2453,8 @@ where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 --    ninguém atualizou as cópias. Mexeu nas políticas? Mude AQUI, e só aqui.
 --    (A `0030` acrescentou a 15ª, a de leitura de `agente_followups`. A `0031`,
 --    dos níveis de acesso, separou leitura de alteração em quase todas as
---    tabelas: 28 em public. O teste dela confere este número.)
+--    tabelas: 28 em public. A `0037` acrescentou a leitura de
+--    `agente_lembretes`: 29. Os testes da 0031 e da 0037 conferem este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 
@@ -2473,6 +2523,10 @@ select * from public.followups_pendentes();
 
 -- O cron está agendado? (esperado: 1 linha, DEPOIS do npm run followup:ligar)
 select jobname, schedule, active from cron.job where jobname = 'followups';
+
+-- Lembretes (0037): a fila de agora e o relógio (DEPOIS do npm run lembretes:ligar)
+select * from public.lembretes_pendentes();
+select jobname, schedule, active from cron.job where jobname = 'lembretes';
 
 -- As últimas batidas. `succeeded` com `return_message` vazio é o normal:
 -- é o minuto em que não havia ninguém na fila.

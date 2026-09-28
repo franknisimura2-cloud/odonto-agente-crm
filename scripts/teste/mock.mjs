@@ -38,7 +38,7 @@ export function responder(url, objeto) {
   if (url.includes('/rest/v1/crm_clinica?') && !lead) return funil
   if (url.includes('/rest/v1/crm_clinica?')) return objeto ? (leads[lead] || null) : [leads[lead]].filter(Boolean)
   if (url.includes('/rest/v1/usuarios')) return objeto ? { id: 'u', nome: 'Frank Nisimura', avatar_url: null } : []
-  if (url.includes('/rest/v1/configuracoes_agente')) return objeto ? { nome_agente: 'Letícia' } : [{ nome_agente: 'Letícia' }]
+  if (url.includes('/rest/v1/configuracoes_agente')) { const a = { id: 'a', nome_agente: 'Letícia', ativo: true, modelo: 'gpt-4.1-mini', prompt: null, modo_teste: true, numeros_teste: ['5511999990000'], provedor_whatsapp: 'uazapi', lembretes_ativo: true, lembrete_vespera_ativo: true, lembrete_vespera_horas: 24, lembrete_antes_ativo: true, lembrete_antes_minutos: 30, lembrete_pedir_confirmacao: true }; return objeto ? a : [a] }
   if (url.includes('/rest/v1/configuracoes_clinica')) { const c = { nome_clinica: 'Núcleo Clínica de Estética', cor_sistema: 'roxo', logo_url: null }; return objeto ? c : [c] }
   const rpc = url.includes('/rpc/') ? url.split('/rpc/')[1].split('?')[0] : null
   // MOCK_PAPEL=recepcao|profissional|dona (padrão) escolhe quem está logado.
@@ -97,6 +97,8 @@ export const consultas = [
   cons('5', 'pd', 'Patrícia Gomes', 'Tratamento facial - Microagulhamento facial', hojeAs(16), 60, 'realizada'),
   cons('6', 'pm', 'Luana Costa', 'Tratamento corporal - Massagem Modeladora', hojeAs(15, 0, 1), 50),
 ]
+// Uma confirmada pelo SIM do lembrete (migração 0037), para o selo aparecer.
+consultas[1].confirmada_em = new Date().toISOString()
 
 // ---- Funil ----
 const nomes = ['Ana Ribeiro', 'Bruna Lopes', 'Camila Duarte', 'Daniela Rocha', 'Eduarda Pires', 'Fernanda Melo', 'Gabriela Sá', 'Helena Dias', 'Isabela Cruz', 'Joana Faria', 'Karina Leal', 'Larissa Moura', 'Mariana Teles', 'Natália Brito', 'Olívia Prado', 'Paula Vieira', 'Quésia Lima', 'Rafaela Nunes', 'Sabrina Couto', 'Tatiane Reis', 'Úrsula Maia', 'Vanessa Luz', 'Wanda Serra', 'Yasmin Paz', 'Zuleica Rios']

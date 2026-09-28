@@ -27,7 +27,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 36), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 37), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 
@@ -133,6 +133,13 @@ npm run followup:ligar      # guarda endereço e segredo no Vault e agenda o cro
 npm run followup:desligar   # tira o cron da agenda; a fila e o histórico ficam
 npm run followup:estado     # o job, as batidas da última hora e a fila de agora
 ```
+
+Os **lembretes de agendamento** (`0037`) têm o mesmo par — o relógio é
+`npm run lembretes:ligar` (`:desligar`, `:estado`; aceitam `-- --clinica
+<nome>`). Ligar o relógio não manda nada: quem liga os lembretes é a chave da
+tela Atendente de IA (`lembretes_ativo`, que nasce desligada). O texto é fixo,
+em `supabase/functions/_shared/lembretes.ts`, junto com o reconhecimento do
+"sim" que vira `consultas.confirmada_em` — ver a seção 4.21 do `DATABASE.md`.
 
 E os do Agente de IA (ver [`agente-ia/README.md`](agente-ia/README.md)):
 

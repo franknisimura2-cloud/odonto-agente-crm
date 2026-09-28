@@ -36,6 +36,7 @@ import { PROMPT_OFICIAL } from '../_shared/prompt-oficial.ts'
 import { ferramentasCom, executar, type Contexto } from '../_shared/ferramentas.ts'
 import { ponteAtiva } from '../_shared/pontes.ts'
 import { avaliarWebhook } from '../_shared/whatsapp.ts'
+import { lerConfirmacao, textoDoLembrete, textoDaConfirmacao, type Lembrete } from '../_shared/lembretes.ts'
 import type { MensagemRecebida, Ponte } from '../_shared/whatsapp.ts'
 
 const SEGREDO = Deno.env.get('WEBHOOK_SEGREDO') ?? ''
@@ -134,6 +135,7 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === 'POST' && rota === '/follow-up') return await rotaFollowUp(req)
+    if (req.method === 'POST' && rota === '/lembretes') return await rotaLembretes(req)
     if (req.method === 'POST' && rota === '/enviar') return await rotaEnviar(req)
     if (req.method === 'GET' && rota === '/prompt-oficial') return await rotaPromptOficial(req)
     if (req.method === 'GET' && rota === '/foto') return await rotaFoto(req)
@@ -297,6 +299,14 @@ async function processar(
   // A segunda conferência não é zelo: quem escreveu no meio do "digitando…"
   // tem execução própria, que responderá por todas. Sem ela, seriam duas.
   if (await chegouMaisNova(lead.id, mensagemId, chegouEm)) return
+
+  // ---- O SIM do lembrete -------------------------------------------------
+  //
+  // Antes das travas, e de propósito: quem confirma presença por um lembrete
+  // que pediu confirmação tem a consulta marcada como confirmada mesmo com a
+  // conversa pausada — a confirmação é um fato da agenda, não uma conversa. O
+  // que as travas decidem é só se sai resposta.
+  if (await tratarConfirmacao(ponte, lead.id, whatsapp)) return
 
   // ---- As duas travas ----------------------------------------------------
   const atual = await selecionar<Lead>(
@@ -692,6 +702,153 @@ async function mandarFollowUp(pendente: Pendente, reservaId: string): Promise<vo
   }
 
   console.log(`follow-up etapa ${pendente.etapa} enviado para ${lead.id}`)
+}
+
+// ---------------------------------------------------------------------------
+// Lembretes de agendamento, com confirmação de presença (migração 0037)
+//
+// Mesmo desenho do follow-up: o `pg_cron` chama `disparar_lembretes()` a cada
+// minuto, que só bate aqui quando há fila; QUEM recebe e QUAL lembrete é
+// decidido pela `lembretes_pendentes()`, no banco. O texto é fixo
+// (`_shared/lembretes.ts`) — nenhum modelo de IA envolvido.
+// ---------------------------------------------------------------------------
+
+interface LembretePendente extends Lembrete {
+  consulta_id: string
+  lead_id: string
+  whatsapp: string
+}
+
+async function rotaLembretes(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const enviado = req.headers.get('x-webhook-segredo') ?? url.searchParams.get('segredo') ?? ''
+  if (!SEGREDO || enviado !== SEGREDO) {
+    return json({ ok: false, motivo: 'nao_autorizado' }, 401)
+  }
+
+  const fila = (await rpc<LembretePendente[]>('lembretes_pendentes', {})).slice(0, MAX_FOLLOWUPS)
+  if (!fila.length) return json({ ok: true, enviados: 0 })
+
+  // A reserva antes de responder 200, como no follow-up: o `unique` de
+  // (consulta, etapa, data) faz a batida seguinte do relógio não enxergar
+  // quem já está sendo avisado. Conflito = outra batida reservou: pula.
+  const reservados: { l: LembretePendente; reservaId: string }[] = []
+  for (const l of fila) {
+    try {
+      const linhas = await inserir<{ id: string }>('agente_lembretes', {
+        consulta_id: l.consulta_id,
+        etapa: l.etapa,
+        para_data: l.data_consulta,
+        pediu_confirmacao: l.pedir_confirmacao,
+      }, true)
+      if (linhas.length) reservados.push({ l, reservaId: linhas[0].id })
+    } catch (e) {
+      console.error('reservar lembrete:', e)
+    }
+  }
+
+  const trabalho = (async () => {
+    const clinica = await selecionar<{ fuso_horario: string | null }>(
+      'configuracoes_clinica?select=fuso_horario&limit=1',
+    )
+    const fuso = clinica[0]?.fuso_horario || FUSO_PADRAO
+    const ponte = await ponteAtiva()
+
+    for (const { l, reservaId } of reservados) {
+      try {
+        const partes = textoDoLembrete(l, fuso)
+        for (const parte of partes) {
+          const pausa = Math.min(4000, Math.max(1200, parte.length * 22))
+          await ponte.digitando(l.whatsapp, pausa)
+          await new Promise((espere) => setTimeout(espere, pausa))
+          const idExterno = await ponte.enviarTexto(l.whatsapp, parte)
+          await inserir('mensagens_whatsapp', {
+            lead_id: l.lead_id,
+            autor: 'agente',
+            tipo: 'texto',
+            conteudo: parte,
+            id_externo: idExterno,
+            lida: true,
+          }, true)
+        }
+        await atualizar('agente_lembretes', `id=eq.${reservaId}`, { texto: partes.join('\n\n') })
+        console.log(`lembrete ${l.etapa} enviado: consulta ${l.consulta_id}`)
+      } catch (e) {
+        // Sem a reserva, a próxima batida tenta de novo. Com ela, a pessoa
+        // sairia da fila sem ter recebido nada.
+        console.error(`lembrete ${l.etapa} da consulta ${l.consulta_id}:`, e)
+        await apagar('agente_lembretes', `id=eq.${reservaId}`).catch(() => {})
+      }
+    }
+  })()
+  emSegundoPlano(trabalho)
+
+  return json({ ok: true, enviados: reservados.length })
+}
+
+/**
+ * A pessoa respondeu SIM a um lembrete que pediu confirmação?
+ *
+ * Lê a rajada — as mensagens dela desde a última da clínica —, porque "Bom
+ * dia" + "Sim" chegam em duas. Devolve `true` quando a conversa termina aqui
+ * (confirmou e já respondemos, ou não cabe resposta); `false` para seguir o
+ * caminho normal, com a agente.
+ *
+ * "Sim" + uma pergunta confirma E segue: a consulta vira confirmada, e a
+ * agente responde a pergunta — a ficha dela já mostra a consulta.
+ */
+async function tratarConfirmacao(ponte: Ponte, leadId: string, whatsapp: string): Promise<boolean> {
+  const ultimas = await selecionar<{ autor: string; conteudo: string | null }>(
+    `mensagens_whatsapp?select=autor,conteudo&lead_id=eq.${leadId}&order=criada_em.desc&limit=8`,
+  )
+  const rajada: string[] = []
+  for (const m of ultimas) {
+    if (m.autor !== 'paciente') break
+    rajada.unshift(m.conteudo ?? '')
+  }
+
+  const leitura = lerConfirmacao(rajada)
+  if (leitura === 'nada') return false
+
+  const confirmadas = await rpc<{ consulta_id: string; data_consulta: string }[]>(
+    'confirmar_presenca', { p_lead: leadId },
+  )
+  // Nenhum lembrete esperando confirmação: o "sim" é de outra conversa.
+  if (!confirmadas?.length) return false
+  console.log(`presença confirmada: consulta ${confirmadas[0].consulta_id}`)
+
+  if (leitura === 'confirma_e_mais') return false
+
+  // Confirmou; a resposta só sai se a agente puder falar com esta pessoa.
+  const lead = await selecionar<{ nome_lead: string | null; agente_pausado: boolean }>(
+    `crm_clinica?select=nome_lead,agente_pausado&id=eq.${leadId}&limit=1`,
+  )
+  if (lead[0]?.agente_pausado) return true
+  const pode = await rpc<boolean | null>('agente_deve_responder', { p_whatsapp: whatsapp })
+  if (pode !== true) return true
+
+  const clinica = await selecionar<{ fuso_horario: string | null }>(
+    'configuracoes_clinica?select=fuso_horario&limit=1',
+  )
+  const texto = textoDaConfirmacao(
+    lead[0]?.nome_lead ?? null,
+    confirmadas[0].data_consulta,
+    clinica[0]?.fuso_horario || FUSO_PADRAO,
+  )
+  try {
+    const idExterno = await ponte.enviarTexto(whatsapp, texto)
+    await inserir('mensagens_whatsapp', {
+      lead_id: leadId,
+      autor: 'agente',
+      tipo: 'texto',
+      conteudo: texto,
+      id_externo: idExterno,
+      lida: true,
+    }, true)
+  } catch (e) {
+    console.error('resposta da confirmação:', e)
+  }
+  return true
 }
 
 // ---------------------------------------------------------------------------

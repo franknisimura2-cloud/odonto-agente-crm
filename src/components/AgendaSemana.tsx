@@ -157,7 +157,7 @@ export default function AgendaSemana({
                 return (
                   <button key={c.id}
                     onClick={(e) => { e.stopPropagation(); onClickConsulta(c) }}
-                    title={`${inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} – ${fimDaConsulta(c).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${c.lead?.nome_lead ?? 'Sem nome'} · ${procedimentoComInteresse(c)}`}
+                    title={`${inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} – ${fimDaConsulta(c).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${c.lead?.nome_lead ?? 'Sem nome'} · ${procedimentoComInteresse(c)}${c.status === 'agendada' && c.confirmada_em ? ' · Confirmada' : ''}`}
                     style={{
                       position: 'absolute',
                       top: topo,
@@ -178,7 +178,7 @@ export default function AgendaSemana({
                       zIndex: 2,
                     }}>
                     <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: naoAconteceu ? 'line-through' : 'none' }}>
-                      {inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} {c.lead?.nome_lead ?? 'Sem nome'}
+                      {c.status === 'agendada' && c.confirmada_em && '✓ '}{inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} {c.lead?.nome_lead ?? 'Sem nome'}
                     </div>
                     {altura > 32 && (
                       <div style={{ fontSize: 10.5, lineHeight: 1.3, opacity: 0.9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

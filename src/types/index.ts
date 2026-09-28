@@ -213,6 +213,8 @@ export interface Consulta {
    * passa a mentir quando a pessoa volta em agosto por outra coisa.
    */
   interesse: string | null
+  /** Quando a pessoa confirmou presença (SIM ao lembrete, ou a equipe marcou). Volta a nulo se remarcar. */
+  confirmada_em: string | null
   cancelado_em: string | null
   motivo_cancelamento: string | null
   created_at: string
@@ -395,6 +397,20 @@ export interface ConfiguracoesAgente {
    * a página. O banco garante não-vazio (`not null` + `CHECK` de 1 a 40).
    */
   nome_agente: string
+  /**
+   * Lembretes de agendamento (migração 0037). `lembretes_ativo` nasce FALSE:
+   * a instalação que recebe a migração com consultas futuras não começa a
+   * mandar mensagem sozinha.
+   */
+  lembretes_ativo: boolean
+  lembrete_vespera_ativo: boolean
+  /** 2 a 72. A véspera respeita a janela de horário do follow-up. */
+  lembrete_vespera_horas: number
+  lembrete_antes_ativo: boolean
+  /** 10 a 360. */
+  lembrete_antes_minutos: number
+  /** A véspera pede "responda SIM"; o SIM vira o selo "Confirmada" na Agenda. */
+  lembrete_pedir_confirmacao: boolean
   atualizado_por: string | null
   created_at: string
   updated_at: string

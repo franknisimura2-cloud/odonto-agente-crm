@@ -236,6 +236,10 @@ npm run instalar:usuario -- email@empresa.com.br   # cria um usuário já confir
 npm run followup:ligar      # agenda o follow-up automático (cron de minuto em minuto)
 npm run followup:desligar   # tira o cron da agenda
 npm run followup:estado     # o job, as últimas batidas e a fila de agora
+
+npm run lembretes:ligar     # agenda o relógio dos lembretes (quem liga é a tela)
+npm run lembretes:desligar
+npm run lembretes:estado
 ```
 
 Os de publicar e o `instalar:usuario` leem o seu projeto e o seu token de
@@ -444,6 +448,13 @@ quem falou por último, nem conversa assumida pela equipe — e o modo teste val
 igual. Quem cancelou pula o toque curto e recebe, no dia seguinte, um convite
 para remarcar. Nasce **desligado**: quem liga é `npm run followup:ligar`. A
 seção 8.6 do [`agente-ia/README.md`](agente-ia/README.md) conta o resto.
+
+E ela **lembra quem tem horário marcado**: um lembrete antecipado (1 dia antes,
+por padrão, e só em horário comercial) que pede para a pessoa responder **SIM**,
+e outro em cima da hora (30 minutos antes). O SIM vira o selo **Confirmada** na
+Agenda; a recepção também pode marcar à mão. O texto é fixo, sem IA. Nasce
+**desligado**: o relógio é `npm run lembretes:ligar`, e quem liga os lembretes
+é a chave na tela Atendente de IA.
 
 **📘 Tudo sobre ela está em [`agente-ia/`](agente-ia/)** — comece pelo
 [`agente-ia/README.md`](agente-ia/README.md).
