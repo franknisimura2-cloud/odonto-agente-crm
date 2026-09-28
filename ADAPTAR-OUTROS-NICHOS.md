@@ -263,7 +263,9 @@ marcador do descritor incluído. Tem que terminar em **"tudo certo"**.
 1. **Os serviços:** rode o `servicos.sql` do kit no banco — com o token, do
    jeito que a parte 3 da instalação aplicou as migrações, ou pelo SQL Editor.
 2. **A atendente:** copie o `prompt.md` e o `descritor-de-fotos.md` do kit para
-   `agente-ia/`, por cima dos genéricos.
+   `agente-ia/`, por cima dos genéricos — **na instalação avulsa**. No Núcleo
+   comercializado (uma pasta por clínica em [`clinicas/`](clinicas/LEIA-ME.md)),
+   eles vão para `clinicas/<nome>/`, e o `agente-ia/` fica genérico.
 3. **O nome dela**, se mudou:
    `update configuracoes_agente set nome_agente = 'Sofia';` — as telas mostram
    o nome novo no próximo F5. A tela não edita o nome, de propósito (ver o

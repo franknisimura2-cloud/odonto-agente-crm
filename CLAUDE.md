@@ -688,6 +688,29 @@ Regras que quebram em silêncio se esquecidas:
   ([`vercel.json`](vercel.json)), e o rewrite do `vercel.json` não alcança
   `/clinicas/` — ficha que não existe responde 404, e não a página do sistema.
 
+### A atendente de cada clínica: `clinicas/<nome>/`
+
+O prompt vai **embutido** na função `whatsapp`, então cada clínica precisa da
+sua publicação. O kit de cada uma mora em [`clinicas/`](clinicas/LEIA-ME.md)
+(`clinica.json` com o projeto, `prompt.md`, `descritor-de-fotos.md` e o
+`.env.agente.local` fora do Git), e os scripts escolhem por ele:
+
+```bash
+npm run agente:deploy  -- --clinica <nome>   # prompt dela, projeto dela
+npm run agente:secrets -- --clinica <nome>   # chaves dela
+```
+
+- **O `agente-ia/` é o genérico** — ponto de partida de uma clínica nova e o
+  da instalação avulsa. O `prompt-oficial.ts` versionado é sempre gerado dele:
+  o `publicar.mjs` gera o da clínica, publica e volta o arquivo ao genérico.
+- **Sem `--clinica`, o projeto do `.supabase-token.local` que for de uma
+  clínica cadastrada usa o kit dela** ([`clinicas.mjs`](agente-ia/clinicas.mjs),
+  `clinicaPorRef`). Não remova essa trava: é ela que impede publicar o
+  genérico por cima da atendente de uma clínica em produção.
+- **Regra nova que vale para todas** vai no `prompt.md` de cada pasta, e cada
+  clínica é publicada. Não existe herança entre o genérico e os kits.
+- `--simular` gera e confere o prompt e mostra o comando, sem publicar.
+
 ### Instalar como aplicativo
 
 O sistema é instalável ("Adicionar à tela inicial"), e abre sem a barra do

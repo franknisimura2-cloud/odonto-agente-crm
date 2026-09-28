@@ -17,15 +17,32 @@
  * — e o token do arquivo não entrava sozinho, então o deploy voltava
  * `Unauthorized` e parecia problema de código. Aqui ele é injetado no
  * processo filho, sempre.
+ *
+ * ── VÁRIAS CLÍNICAS ────────────────────────────────────────────────────────
+ *
+ *     npm run agente:deploy  -- --clinica <nome>
+ *     npm run agente:secrets -- --clinica <nome>
+ *
+ * Com `--clinica`, o projeto é o de `clinicas/<nome>/clinica.json`, as chaves
+ * são as de `clinicas/<nome>/.env.agente.local`, e a atendente publicada é a
+ * de `clinicas/<nome>/prompt.md` (ver `clinicas.mjs`).
+ *
+ * SEM `--clinica`, vale o `SUPABASE_PROJECT_REF` do `.supabase-token.local` —
+ * mas se esse projeto for de uma clínica cadastrada, o kit DELA é usado. É a
+ * trava contra o erro mais caro daqui: publicar o prompt genérico por cima da
+ * atendente de uma clínica em produção.
+ *
+ * `--simular` mostra o que seria feito e gera o prompt (conferindo o
+ * contrato), sem chamar o Supabase.
  */
 
 import { readFileSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { RAIZ as raiz, clinicaDaLinhaDeComando, clinicaPorId, clinicaPorRef } from './clinicas.mjs'
 
-const raiz = join(dirname(fileURLToPath(import.meta.url)), '..')
 const arquivo = join(raiz, '.supabase-token.local')
+const simular = process.argv.includes('--simular')
 
 /** Um `.env` simples: `CHAVE=valor`, ignorando comentários e linhas vazias. */
 function ler(caminho) {
@@ -43,7 +60,7 @@ function morrer(mensagem) {
   process.exit(1)
 }
 
-if (!existsSync(arquivo)) {
+if (!existsSync(arquivo) && !simular) {
   morrer(
     'Falta o arquivo .supabase-token.local.\n\n' +
     '     cp .supabase-token.example .supabase-token.local\n\n' +
@@ -52,22 +69,39 @@ if (!existsSync(arquivo)) {
   )
 }
 
-const cfg = ler(arquivo)
+const cfg = existsSync(arquivo) ? ler(arquivo) : {}
 const token = cfg.SUPABASE_ACCESS_TOKEN
-const ref = cfg.SUPABASE_PROJECT_REF
 
-if (!token) morrer('SUPABASE_ACCESS_TOKEN está vazio em .supabase-token.local.')
-if (!ref) {
-  morrer(
-    'SUPABASE_PROJECT_REF está vazio em .supabase-token.local.\n\n' +
-    '     É o identificador do SEU projeto — as 20 letras que aparecem na URL\n' +
-    '     do painel: https://supabase.com/dashboard/project/AQUI',
-  )
+if (!token && !simular) morrer('SUPABASE_ACCESS_TOKEN está vazio em .supabase-token.local.')
+
+// Qual projeto, e de qual clínica.
+const idPedido = clinicaDaLinhaDeComando()
+let clinica = null
+let ref
+if (idPedido !== null) {
+  clinica = clinicaPorId(idPedido)
+  if (!clinica) morrer(`Não existe a clínica "${idPedido}" em clinicas/.`)
+  ref = clinica.supabase_ref
+  if (!ref) morrer(`clinicas/${clinica.id}/clinica.json está sem "supabase_ref".`)
+} else {
+  ref = cfg.SUPABASE_PROJECT_REF
+  if (!ref) {
+    morrer(
+      'SUPABASE_PROJECT_REF está vazio em .supabase-token.local.\n\n' +
+      '     É o identificador do SEU projeto — as 20 letras que aparecem na URL\n' +
+      '     do painel: https://supabase.com/dashboard/project/AQUI\n\n' +
+      '     Publicando para uma clínica cadastrada? Use --clinica <nome>.',
+    )
+  }
+  clinica = clinicaPorRef(ref)
+  if (clinica) console.log(`\n  · O projeto ${ref} é da clínica "${clinica.id}" — usando o kit dela.`)
 }
+
+const arquivoDeChaves = clinica ? `clinicas/${clinica.id}/.env.agente.local` : 'agente-ia/.env.agente.local'
 
 const acao = process.argv[2]
 const comandos = {
-  secrets: ['secrets', 'set', '--project-ref', ref, '--env-file', 'agente-ia/.env.agente.local'],
+  secrets: ['secrets', 'set', '--project-ref', ref, '--env-file', arquivoDeChaves],
   // `--no-verify-jwt` de propósito: quem chama o webhook é a ponte de WhatsApp,
   // que não tem sessão do Supabase. A autenticação é o WEBHOOK_SEGREDO,
   // conferido dentro da função. Publicar no padrão derruba o webhook com um
@@ -81,13 +115,36 @@ if (!comandos[acao]) {
   morrer(`Ação desconhecida: "${acao ?? ''}". Use: ${Object.keys(comandos).join(', ')}`)
 }
 
-console.log(`\n  → supabase ${comandos[acao].join(' ')}\n`)
+if (acao === 'secrets' && !existsSync(join(raiz, arquivoDeChaves))) {
+  morrer(`Falta ${arquivoDeChaves} — são as chaves que sobem para o projeto ${ref}.`)
+}
 
-const r = spawnSync('npx', ['--yes', 'supabase', ...comandos[acao]], {
-  cwd: raiz,
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-  env: { ...process.env, SUPABASE_ACCESS_TOKEN: token },
-})
+/** Roda o gerador do prompt; com a clínica, o dela. Morre se o contrato falhar. */
+function gerarPrompt(daClinica) {
+  const args = [join(raiz, 'agente-ia', 'gerar-prompt.mjs'), ...(daClinica ? ['--clinica', daClinica.id] : [])]
+  const g = spawnSync(process.execPath, args, { cwd: raiz, stdio: 'inherit' })
+  if (g.status !== 0) morrer('O prompt não passou na conferência. Nada foi publicado.')
+}
 
-process.exit(r.status ?? 1)
+// A função `whatsapp` leva o prompt embutido: gera o desta clínica logo antes.
+if (acao === 'deploy') gerarPrompt(clinica)
+
+console.log(`\n  → supabase ${comandos[acao].join(' ')}${simular ? '   (simulação: não executado)' : ''}\n`)
+
+let status = 0
+if (!simular) {
+  const r = spawnSync('npx', ['--yes', 'supabase', ...comandos[acao]], {
+    cwd: raiz,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+    env: { ...process.env, SUPABASE_ACCESS_TOKEN: token },
+  })
+  status = r.status ?? 1
+}
+
+// O `prompt-oficial.ts` é versionado, e o que fica no repositório é o
+// GENÉRICO: publicar para uma clínica não pode deixar o arquivo "modificado"
+// com a atendente dela no `git status`.
+if (acao === 'deploy' && clinica) gerarPrompt(null)
+
+process.exit(status)

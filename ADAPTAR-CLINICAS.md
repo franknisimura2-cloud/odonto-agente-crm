@@ -90,7 +90,9 @@ num `update`. Não ligue a Letícia antes dessa leitura.
 2. **Os serviços:** rode o [`servicos.sql`](kits/clinica-odontologica/servicos.sql)
    no banco, com o token ou pelo SQL Editor. Rodar de novo não duplica.
 3. **A atendente:** copie o `prompt.md` e o `descritor-de-fotos.md` do kit para
-   `agente-ia/`, por cima dos genéricos, e acrescente o que as perguntas
+   `agente-ia/`, por cima dos genéricos (instalação avulsa — no Núcleo
+   comercializado, para `clinicas/<nome>/`, ver
+   [`clinicas/LEIA-ME.md`](clinicas/LEIA-ME.md)), e acrescente o que as perguntas
    trouxeram (convênio, telefone de urgência).
 4. **As respostas de A.1**, pela tela: desligar, preços, a caixa da porta, os
    dentistas.
@@ -192,7 +194,7 @@ diagnosticar, nunca dizer que algo está "normal", nunca descrever o que não vi
 
 Como no caminho A: conferir
 (`node agente-ia/conferir-contrato.mjs kits/clinica-<especialidade>`), rodar o
-`servicos.sql`, copiar os dois `.md` para `agente-ia/`, publicar e testar — com
+`servicos.sql`, copiar os dois `.md` para `agente-ia/` (ou `clinicas/<nome>/`), publicar e testar — com
 uma foto da especialidade, a urgência dela e um *"isso resolve pra mim?"*.
 
 **E um profissional da clínica lê o prompt antes de ele ir para o ar.** É a
