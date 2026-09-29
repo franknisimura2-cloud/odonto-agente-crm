@@ -27,7 +27,7 @@ fica o lado de negócio e a ordem das coisas.
 
 | O quê | Onde |
 |---|---|
-| A clínica de teste | fictícia, a criar — `<nome>.dbxodonto.online`, kit em `clinicas/<nome>/` a partir de `kits/clinica-odontologica` |
+| A clínica de teste | https://sorrisopleno.dbxodonto.online (fictícia) — kit em `clinicas/sorriso-pleno/`, projeto Supabase `vyojdfampdbglamtmfuf` (plano grátis) |
 | O endereço antigo (continua valendo, pelo `.env`) | https://nucleo-agente-crm.vercel.app |
 | Site | Vercel **Pro**, time "Nisimura Design", projeto `nucleo-agente-crm`; domínio coringa `*.dbxodonto.online` (DNS na Vercel) |
 | Banco da clínica atual | Supabase, projeto `yrdbsrjdscyitrmearni` (plano **gratuito**) |
