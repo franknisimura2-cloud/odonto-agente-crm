@@ -19,6 +19,7 @@
  * banco, e o segredo nunca é impresso.
  */
 
+import './nunca-estetica.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { RAIZ, clinicaDaLinhaDeComando, clinicaPorId, clinicaPorRef } from '../agente-ia/clinicas.mjs'

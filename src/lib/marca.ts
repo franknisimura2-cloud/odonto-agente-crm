@@ -15,7 +15,7 @@ import { useSyncExternalStore } from 'react'
  * ⚠️ O `<title>` do `index.html` é um segundo lugar, e ele não lê este
  * arquivo (é HTML estático). Trocou aqui, troque lá.
  */
-export const NOME_DO_SISTEMA = 'Núcleo'
+export const NOME_DO_SISTEMA = 'CRM Odonto'
 
 // ---------------------------------------------------------------------------
 // A cor do sistema

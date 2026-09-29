@@ -36,6 +36,7 @@
  * contrato), sem chamar o Supabase.
  */
 
+import '../scripts/nunca-estetica.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'

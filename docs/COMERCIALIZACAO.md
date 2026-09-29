@@ -27,9 +27,9 @@ fica o lado de negócio e a ordem das coisas.
 
 | O quê | Onde |
 |---|---|
-| A clínica atual | https://nucleoestetica.dbxtecnologia.online — kit em `clinicas/nucleo-estetica/` |
+| A clínica de teste | fictícia, a criar — `<nome>.dbxodonto.online`, kit em `clinicas/<nome>/` a partir de `kits/clinica-odontologica` |
 | O endereço antigo (continua valendo, pelo `.env`) | https://nucleo-agente-crm.vercel.app |
-| Site | Vercel **Pro**, time "Nisimura Design", projeto `nucleo-agente-crm`; domínio coringa `*.dbxtecnologia.online` (DNS na Vercel) |
+| Site | Vercel **Pro**, time "Nisimura Design", projeto `nucleo-agente-crm`; domínio coringa `*.dbxodonto.online` (DNS na Vercel) |
 | Banco da clínica atual | Supabase, projeto `yrdbsrjdscyitrmearni` (plano **gratuito**) |
 | Código | GitHub `franknisimura2-cloud/nucleo-agente-crm` (**privado**) — `main` publica o site sozinho |
 | WhatsApp | uazapi, uma instância |
@@ -43,7 +43,7 @@ fica o lado de negócio e a ordem das coisas.
 | **Uma instalação (projeto Supabase) por clínica**, e não um banco com todas | O sistema inteiro supõe uma clínica por banco; juntar seria reescrever 30 migrações, o RLS e o agente. E dados de saúde isolados por construção são argumento de venda. Reavaliar com ~30–50 clínicas |
 | **Um site só** para todas, clínica descoberta pelo endereço | Uma atualização da tela chega a todas de uma vez |
 | **Vercel Pro**, e não o VPS da Hostinger | Link de teste por branch, voltar versão num clique, nada de servidor para manter. O VPS fica para o que não é das clínicas (automações, backups) |
-| **Domínio coringa `*.dbxtecnologia.online`** com o DNS na Vercel | Clínica nova ganha endereço sem mexer em DNS — só a ficha. E-mail ou site da DBX no domínio passam a ser configurados no DNS da Vercel |
+| **Domínio coringa `*.dbxodonto.online`** com o DNS na Vercel | Clínica nova ganha endereço sem mexer em DNS — só a ficha. E-mail ou site da DBX no domínio passam a ser configurados no DNS da Vercel |
 | **Sem service worker** no aplicativo | Nenhuma clínica fica presa numa versão velha depois de um deploy |
 | **Funil sem arrastar no celular** | A dona lê; mover de etapa é no computador ou na ficha |
 
@@ -131,7 +131,7 @@ Um comando que recebe o nome da clínica (e o kit de origem) e faz, na ordem:
 6. **Roda o `servicos.sql`** do kit.
 7. **Cria os logins** (a lógica do `npm run instalar:usuario`, apontada para o
    projeto novo).
-8. **Cria a ficha** `public/clinicas/<nome>.dbxtecnologia.online.json`.
+8. **Cria a ficha** `public/clinicas/<nome>.dbxodonto.online.json`.
 9. Mostra o checklist do que falta: WhatsApp, treinamento, teste, aceite.
 
 Tudo com `--simular` primeiro. O token do Supabase é gerado para a sessão e
@@ -152,7 +152,7 @@ Fora do Git, e por isso fora do clone:
 | Arquivo | Levar como |
 |---|---|
 | `.env` (endereço e chave **pública** do Supabase) | Copiar, ou recriar a partir de `public/clinicas/` |
-| `clinicas/nucleo-estetica/.env.agente.local` (OpenAI, uazapi, segredo do webhook) | **Só** por gerenciador de senhas ou pendrive |
+| `clinicas/<nome>/.env.agente.local` (OpenAI, uazapi, segredo do webhook) | **Só** por gerenciador de senhas ou pendrive |
 | `.supabase-token.local` | Não existe: gerar um novo quando for publicar, e revogar no fim |
 
 Ao começar: `git pull`. Ao terminar: commit e `git push`.

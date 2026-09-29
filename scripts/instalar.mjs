@@ -28,6 +28,7 @@
  * vai para arquivo, nem para a tela.
  */
 
+import './nunca-estetica.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { randomInt } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'

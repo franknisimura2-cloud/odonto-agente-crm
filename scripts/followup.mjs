@@ -23,6 +23,7 @@
  * cifrado) e nunca é impresso aqui — mesma disciplina do `instalar:conferir`.
  */
 
+import './nunca-estetica.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'

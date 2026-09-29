@@ -14,6 +14,7 @@
  * ⚠️ NUNCA ponha `commit` num arquivo de teste: ele gravaria de verdade.
  */
 
+import './nunca-estetica.mjs'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { RAIZ, clinicaDaLinhaDeComando, clinicaPorId } from '../agente-ia/clinicas.mjs'

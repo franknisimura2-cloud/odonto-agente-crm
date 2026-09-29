@@ -22,6 +22,7 @@
  * escrito.
  */
 
+import './nunca-estetica.mjs'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { RAIZ, clinicaDaLinhaDeComando, clinicaPorId } from '../agente-ia/clinicas.mjs'

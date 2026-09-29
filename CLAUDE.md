@@ -4,6 +4,20 @@ Orientações para agentes trabalhando neste repositório — qualquer IA, não 
 Claude. O [`AGENTS.md`](AGENTS.md), que é o arquivo que o Codex e o Cursor
 procuram, aponta para cá: as regras moram só aqui.
 
+> 🦷 **Este é o CRM Odonto** (`odonto-agente-crm`), produto para clínicas
+> odontológicas, com endereços em `*.dbxodonto.online`. Nasceu em 29/09/2026
+> como cópia do CRM de estética (`nucleo-agente-crm`, commit `0a52881`), que
+> está **validado e congelado**. Os dois são produtos separados: repositório,
+> Vercel e projetos Supabase próprios.
+>
+> - O remoto `upstream` aponta para o de estética **só para leitura** — o push
+>   dele está desativado de propósito. Correção que valha para os dois é
+>   trazida à mão, escolhida uma a uma (`git fetch upstream` +
+>   `git cherry-pick`), nunca por merge automático.
+> - Nunca rode script, deploy ou migração deste repositório contra o projeto
+>   Supabase da estética (`yrdbsrjdscyitrmearni`).
+> - O conteúdo de nicho vem de `kits/clinica-odontologica/`.
+
 ---
 
 ## ⚠️ PRIMEIRO: isto é uma instalação nova?

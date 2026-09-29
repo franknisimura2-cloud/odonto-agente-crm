@@ -1,6 +1,6 @@
 {
-  "name": "Núcleo",
-  "short_name": "Núcleo",
+  "name": "CRM Odonto",
+  "short_name": "CRM Odonto",
   "description": "Agenda, conversas e clientes da empresa.",
   "lang": "pt-BR",
   "start_url": "/",
