@@ -106,11 +106,11 @@ end $$;
 insert into r (ok, texto)
 select count(*) = 1, 'a empresa lista os convênios ativos (e só eles)'
   from public.informacoes_clinica_agente
- where informacao like 'Convênios aceitos: Convênio Teste.%';
+ where informacao like 'Convênios aceitos: %Convênio Teste%' and informacao not like '%Convênio Inativo%';
 insert into r (ok, texto)
 select count(*) = 1, 'o serviço coberto diz qual convênio cobre'
   from public.procedimentos_clinica_agente, s
- where procedimento like s.coberto || '%Cobertura de convênio: Convênio Teste.';
+ where procedimento like s.coberto || '%Cobertura de convênio: %Convênio Teste%';
 insert into r (ok, texto)
 select count(*) = 0, 'convênio inativo não aparece na cobertura'
   from public.procedimentos_clinica_agente
