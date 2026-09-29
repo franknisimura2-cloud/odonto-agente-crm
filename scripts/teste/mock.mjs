@@ -68,6 +68,18 @@ export function responder(url, objeto) {
   if (url.includes('/rest/v1/profissionais?')) return profissionais
   if (url.includes('/rest/v1/profissional_horarios')) return horarios
   if (url.includes('/rest/v1/profissional_bloqueios')) return []
+  // Convênios (0038)
+  if (url.includes('/rest/v1/convenios?')) return [
+    { id: 'cv1', nome: 'Amil Dental', ativo: true, observacoes: null, created_at: '2026-01-01' },
+    { id: 'cv2', nome: 'Bradesco Dental', ativo: true, observacoes: null, created_at: '2026-01-01' },
+    { id: 'cv3', nome: 'OdontoPrev', ativo: false, observacoes: null, created_at: '2026-01-01' },
+  ]
+  if (url.includes('/rest/v1/servicos_clinica?') && url.includes('select=id')) return [
+    { id: 's1', nome: 'Avaliação Odontológica' }, { id: 's2', nome: 'Limpeza e Profilaxia' },
+    { id: 's3', nome: 'Restauração em Resina' }, { id: 's4', nome: 'Tratamento de Canal' }, { id: 's5', nome: 'Lentes de Contato' },
+  ]
+  if (url.includes('/rest/v1/convenio_coberturas')) return [['cv1', 's1'], ['cv1', 's2'], ['cv1', 's3'], ['cv2', 's1']].map(([convenio_id, servico_id]) => ({ convenio_id, servico_id }))
+  if (url.includes('/rest/v1/convenio_repasses')) return (process.env.MOCK_PAPEL || 'dona') === 'dona' ? [{ convenio_id: 'cv1', servico_id: 's1', valor: 45 }, { convenio_id: 'cv1', servico_id: 's2', valor: 62.5 }] : []
   if (url.includes('/rest/v1/consultas?') && decodeURIComponent(url).includes('lead:')) return consultas
   return objeto ? null : []
 }
@@ -99,6 +111,7 @@ export const consultas = [
 ]
 // Uma confirmada pelo SIM do lembrete (migração 0037), para o selo aparecer.
 consultas[1].confirmada_em = new Date().toISOString()
+consultas[1].forma_pagamento = 'convenio'; consultas[1].convenio_id = 'cv1'
 
 // ---- Funil ----
 const nomes = ['Ana Ribeiro', 'Bruna Lopes', 'Camila Duarte', 'Daniela Rocha', 'Eduarda Pires', 'Fernanda Melo', 'Gabriela Sá', 'Helena Dias', 'Isabela Cruz', 'Joana Faria', 'Karina Leal', 'Larissa Moura', 'Mariana Teles', 'Natália Brito', 'Olívia Prado', 'Paula Vieira', 'Quésia Lima', 'Rafaela Nunes', 'Sabrina Couto', 'Tatiane Reis', 'Úrsula Maia', 'Vanessa Luz', 'Wanda Serra', 'Yasmin Paz', 'Zuleica Rios']

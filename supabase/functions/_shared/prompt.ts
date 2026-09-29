@@ -66,6 +66,10 @@ export interface DadosDaPessoa {
   status: string
   procedimento_interesse: string | null
   resumo_conversa: string | null
+  /** Migração 0038. Ausentes numa instalação sem convênios. */
+  forma_pagamento?: string | null
+  convenio_nome?: string | null
+  convenio_validade?: string | null
 }
 
 interface ConsultaResumo {
@@ -155,6 +159,21 @@ export async function montarFicha(
 
   if (pessoa.resumo_conversa?.trim()) {
     linhas.push(`Do que já falaram: ${pessoa.resumo_conversa.trim()}`)
+  }
+
+  // Particular ou convênio (0038). Em branco, nada: a regra de perguntar mora
+  // no prompt, e só vale para clínica que aceita convênio.
+  if (pessoa.forma_pagamento === 'convenio' && pessoa.convenio_nome) {
+    let linha = `Atendimento: pelo convênio ${pessoa.convenio_nome}.`
+    const validade = pessoa.convenio_validade
+    if (validade && validade < new Date().toISOString().slice(0, 10)) {
+      const [a, m, d] = validade.split('-')
+      linha += ` A carteirinha consta como VENCIDA desde ${d}/${m}/${a}: avise com delicadeza ` +
+        'que é preciso regularizar com o convênio, ou seguir no particular.'
+    }
+    linhas.push(linha)
+  } else if (pessoa.forma_pagamento === 'particular') {
+    linhas.push('Atendimento: particular.')
   }
 
   if (proxima) {

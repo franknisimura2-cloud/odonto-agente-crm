@@ -13,7 +13,7 @@ import { supabase } from './supabase'
 export const COLUNAS_CONSULTA =
   'id, lead_id, procedimento, data_consulta, status, observacoes, created_at, profissional_id, ' +
   'duracao_minutos, origem, chave_externa, cancelado_em, motivo_cancelamento, updated_at, data_fim, interesse, ' +
-  'confirmada_em'
+  'confirmada_em, forma_pagamento, convenio_id'
 
 /**
  * Os valores pagos de um lote de consultas — só para quem tem `valores`, e só

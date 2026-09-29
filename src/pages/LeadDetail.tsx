@@ -14,6 +14,7 @@ import type { LeadClinica, LeadStatus, Consulta, ConsultaStatus, Profissional } 
 import { MARCA_SUAVE, MARCA, MARCA_CLARO } from '../lib/marca'
 import { useAcesso } from '../lib/acesso'
 import { COLUNAS_CONSULTA, valoresDasConsultas, definirValorDaConsulta } from '../lib/consultas'
+import { useConvenios, rotuloForma, valorDaEscolha, escolhaParaCampos, carteirinhaVencida } from '../lib/convenios'
 
 /* ──────────────────────────────────────────────
    Constants
@@ -274,6 +275,11 @@ export default function LeadDetail() {
   const [procedimentos, setProcedimentos] = useState<string[]>([])
   const [dataNascimento, setDataNascimento] = useState('')
   const [valorPago, setValorPago] = useState('')
+  // Particular ou convênio (0038): '' = não informado, 'particular', ou o id do convênio.
+  const [formaEscolha, setFormaEscolha] = useState('')
+  const [carteirinha, setCarteirinha] = useState('')
+  const [validade, setValidade] = useState('')
+  const convenios = useConvenios()
   const [savingFicha, setSavingFicha] = useState(false)
   const [fichaSaved, setFichaSaved] = useState(false)
   const [fichaError, setFichaError] = useState('')
@@ -300,6 +306,9 @@ export default function LeadDetail() {
         setProcedimentos(leadData.procedimentos_interesse ?? [])
         setDataNascimento(leadData.data_nascimento ? leadData.data_nascimento.slice(0, 10) : '')
         setValorPago(leadData.valor_pago_acumulado !== null && leadData.valor_pago_acumulado !== undefined ? String(leadData.valor_pago_acumulado) : '')
+        setFormaEscolha(valorDaEscolha(leadData.forma_pagamento, leadData.convenio_id))
+        setCarteirinha(leadData.convenio_carteirinha ?? '')
+        setValidade(leadData.convenio_validade ?? '')
       }
       const lista = (consultasData ?? []) as unknown as Consulta[]
       setConsultas(lista)
@@ -375,6 +384,11 @@ export default function LeadDetail() {
       // escrever nela é escrever numa expressão.
       procedimentos_interesse: procedimentos,
       data_nascimento: dataNascimento || null,
+      // Particular/convênio. Carteirinha e validade só fazem sentido com
+      // convênio — trocar para particular as limpa, para não ficar dado velho.
+      ...escolhaParaCampos(formaEscolha),
+      convenio_carteirinha: formaEscolha && formaEscolha !== 'particular' ? (carteirinha.trim() || null) : null,
+      convenio_validade: formaEscolha && formaEscolha !== 'particular' ? (validade || null) : null,
     }
     if (whatsappTocado) campos.whatsapp_lead = whatsapp
 
@@ -419,6 +433,9 @@ export default function LeadDetail() {
     // masculino" vê a caixa certa marcada, sem a ficha continuar "alterada".
     setNome(atualizado.nome_lead ?? '')
     setProcedimentos(atualizado.procedimentos_interesse ?? [])
+    setFormaEscolha(valorDaEscolha(atualizado.forma_pagamento, atualizado.convenio_id))
+    setCarteirinha(atualizado.convenio_carteirinha ?? '')
+    setValidade(atualizado.convenio_validade ?? '')
     setWhatsappTocado(false)
     setFichaSaved(true)
     setTimeout(() => setFichaSaved(false), 2000)
@@ -466,7 +483,13 @@ export default function LeadDetail() {
     (whatsappTocado && whatsapp !== (lead.whatsapp_lead ?? '')) ||
     [...procedimentos].sort().join('|') !== [...(lead.procedimentos_interesse ?? [])].sort().join('|') ||
     dataNascimento !== (lead.data_nascimento ? lead.data_nascimento.slice(0, 10) : '') ||
-    valorPago !== (lead.valor_pago_acumulado !== null && lead.valor_pago_acumulado !== undefined ? String(lead.valor_pago_acumulado) : '')
+    valorPago !== (lead.valor_pago_acumulado !== null && lead.valor_pago_acumulado !== undefined ? String(lead.valor_pago_acumulado) : '') ||
+    formaEscolha !== valorDaEscolha(lead.forma_pagamento, lead.convenio_id) ||
+    (formaEscolha !== '' && formaEscolha !== 'particular' && (
+      carteirinha.trim() !== (lead.convenio_carteirinha ?? '') || validade !== (lead.convenio_validade ?? '')))
+
+  const nomeDoConvenio = (id: string | null) => convenios.find((c) => c.id === id)?.nome ?? null
+  const comConvenio = formaEscolha !== '' && formaEscolha !== 'particular'
 
   return (
     <div className="pagina" style={{ padding: '28px 36px', maxWidth: 900, margin: '0 auto' }}>
@@ -487,6 +510,15 @@ export default function LeadDetail() {
                 {statusStyle.pulse && <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusStyle.color, animation: 'pulse-dot 1.4s ease infinite', display: 'inline-block' }} />}
                 {STATUS_OPTIONS.find((o) => o.value === lead.status)?.label}
               </span>
+              {lead.forma_pagamento && (
+                <span title={carteirinhaVencida(lead.convenio_validade) ? 'Carteirinha vencida' : undefined}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+                    background: lead.forma_pagamento === 'convenio' ? (carteirinhaVencida(lead.convenio_validade) ? '#FEF2F2' : '#EEF4FF') : '#F2F6F7',
+                    color: lead.forma_pagamento === 'convenio' ? (carteirinhaVencida(lead.convenio_validade) ? '#DC2626' : '#3B5BDB') : '#3A5560' }}>
+                  {rotuloForma(lead.forma_pagamento, lead.convenio_nome)}
+                  {lead.forma_pagamento === 'convenio' && carteirinhaVencida(lead.convenio_validade) && ' · vencida'}
+                </span>
+              )}
               {lead.whatsapp_lead && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#6B818C' }}>
                   <Phone size={13} /> {formatarParaExibicao(lead.whatsapp_lead)}
@@ -540,7 +572,7 @@ export default function LeadDetail() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #DCE6EA' }}>
-                    {['Serviço', 'Data', 'Profissional', 'Status', ...(podeValores ? ['Valor Pago'] : []), 'Observações'].map((h) => (
+                    {['Serviço', 'Data', 'Profissional', 'Status', 'Pagamento', ...(podeValores ? ['Valor Pago'] : []), 'Observações'].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#6B818C', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -568,6 +600,9 @@ export default function LeadDetail() {
                           <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: cs.bg, color: cs.color, whiteSpace: 'nowrap' }}>
                             {ROTULO_CONSULTA[c.status]}
                           </span>
+                        </td>
+                        <td style={{ padding: '11px 12px', color: '#6B818C', whiteSpace: 'nowrap' }}>
+                          {c.forma_pagamento ? rotuloForma(c.forma_pagamento, nomeDoConvenio(c.convenio_id)) : '—'}
                         </td>
                         {podeValores && <td style={{ padding: '11px 12px', color: '#6B818C' }}>{fmtCurrency(c.valor_pago)}</td>}
                         <td style={{ padding: '11px 12px', color: '#6B818C', maxWidth: 200 }}>{c.observacoes ?? '—'}</td>
@@ -681,6 +716,41 @@ export default function LeadDetail() {
                   })}
                 </div>
               )}
+            </LinhaFicha>
+
+            {/* Particular ou convênio (0038). É a preferência da PESSOA: a
+                consulta nova nasce com ela sozinha (convênio só quando o
+                serviço é coberto). Convênio desativado continua na lista só
+                para quem já o tem. */}
+            <LinhaFicha rotulo="Atendimento" topo>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <select value={formaEscolha} onChange={(e) => { setFormaEscolha(e.target.value); setFichaError('') }}
+                  style={{ ...campoStyle, maxWidth: 320 }}>
+                  <option value="">Não informado</option>
+                  <option value="particular">Particular</option>
+                  {convenios.filter((c) => c.ativo || c.id === lead.convenio_id).map((c) => (
+                    <option key={c.id} value={c.id}>Convênio {c.nome}{c.ativo ? '' : ' (desativado)'}</option>
+                  ))}
+                </select>
+                {comConvenio && (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input value={carteirinha} onChange={(e) => { setCarteirinha(e.target.value); setFichaError('') }}
+                      placeholder="Nº da carteirinha" maxLength={40}
+                      style={{ ...campoStyle, width: 200 }} />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#6B818C' }}>
+                      Validade
+                      <input type="date" value={validade} onChange={(e) => { setValidade(e.target.value); setFichaError('') }}
+                        style={campoStyle} />
+                    </label>
+                  </div>
+                )}
+                {comConvenio && carteirinhaVencida(validade) && (
+                  <div style={{ fontSize: 12.5, color: '#DC2626' }}>A carteirinha está vencida. A atendente de IA avisa a pessoa se ela escrever.</div>
+                )}
+                {convenios.length === 0 && (
+                  <div style={{ fontSize: 12, color: '#6B818C' }}>Nenhum convênio cadastrado — cadastre em Convênios.</div>
+                )}
+              </div>
             </LinhaFicha>
 
             <LinhaFicha rotulo="Data de Nascimento">

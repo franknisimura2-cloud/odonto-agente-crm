@@ -5,6 +5,7 @@ import {
   KanbanSquare,
   MessagesSquare,
   ClipboardList,
+  ShieldCheck,
   Bot,
   KeyRound,
   CalendarDays,
@@ -53,6 +54,7 @@ const NAV_ITEMS: { to: string; label: string; icon: typeof Users; end?: boolean;
   { to: '/clientes', label: 'Clientes', icon: UserCheck, permite: (a) => a.pode('pessoas') },
   { to: '/profissionais', label: 'Profissionais', icon: BriefcaseBusiness, permite: configura },
   { to: '/servicos', label: 'Serviços', icon: ClipboardList, permite: configura },
+  { to: '/convenios', label: 'Convênios', icon: ShieldCheck, permite: configura },
   // Configurações é de todo mundo: a aba Perfil (nome, foto, senha).
   { to: '/configuracoes', label: 'Configurações', icon: Settings, permite: () => true },
 ]

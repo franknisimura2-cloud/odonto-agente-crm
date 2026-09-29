@@ -12,6 +12,7 @@ import Clientes from './pages/Clientes'
 import LeadDetail from './pages/LeadDetail'
 import Configuracoes from './pages/Configuracoes'
 import Procedimentos from './pages/Procedimentos'
+import Convenios from './pages/Convenios'
 import SecretariaIA from './pages/SecretariaIA'
 import TokenApi from './pages/TokenApi'
 import { ExigeAcesso } from './components/AcessoProvider'
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/agenda" element={so(veAgenda, <Agenda />)} />
             <Route path="/profissionais" element={so((a) => a.pode('configurar'), <Profissionais />)} />
             <Route path="/servicos" element={so((a) => a.pode('configurar'), <Procedimentos />)} />
+            <Route path="/convenios" element={so((a) => a.pode('configurar'), <Convenios />)} />
             <Route path="/atendente-ia" element={so((a) => a.pode('configurar'), <SecretariaIA />)} />
             <Route path="/token-api" element={so((a) => a.pode('configurar'), <TokenApi />)} />
             <Route path="/leads" element={so((a) => a.pode('pessoas'), <Leads />)} />

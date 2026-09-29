@@ -98,11 +98,15 @@ interface Lead {
   status: string
   procedimento_interesse: string | null
   resumo_conversa: string | null
+  forma_pagamento?: string | null
+  convenio_nome?: string | null
+  convenio_validade?: string | null
 }
 
 /** As colunas do lead que a ficha do prompt precisa. Uma consulta só. */
 const CAMPOS_LEAD =
-  'id,nome_lead,agente_pausado,status,procedimento_interesse,resumo_conversa'
+  'id,nome_lead,agente_pausado,status,procedimento_interesse,resumo_conversa,' +
+  'forma_pagamento,convenio_nome,convenio_validade'
 
 interface Mensagem {
   id: string
@@ -344,10 +348,11 @@ async function processar(
   // Lido a cada mensagem, e de propósito: uma lista fixa envelheceria no dia em
   // que a clínica cadastrasse mais um, e o sintoma seria a Letícia não
   // conseguir marcar algo que está na tela dela.
-  const catalogo = await selecionar<{ nome: string }>(
-    'servicos_clinica?select=nome&ativo=is.true&order=nome',
-  )
-  const ferramentas = ferramentasCom(catalogo.map((s) => s.nome))
+  const [catalogo, convenios] = await Promise.all([
+    selecionar<{ nome: string }>('servicos_clinica?select=nome&ativo=is.true&order=nome'),
+    selecionar<{ nome: string }>('convenios?select=nome&ativo=is.true&order=nome'),
+  ])
+  const ferramentas = ferramentasCom(catalogo.map((s) => s.nome), convenios.map((c) => c.nome))
 
   let resposta = ''
   for (let volta = 0; volta < MAX_VOLTAS; volta++) {

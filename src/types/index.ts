@@ -24,6 +24,18 @@ export type ConsultaStatus = 'agendada' | 'realizada' | 'cancelada' | 'faltou'
 /** Quem criou a consulta. `agente_ia` chega pela API; `equipe`, pela tela. */
 export type ConsultaOrigem = 'equipe' | 'agente_ia'
 
+/** Migração 0038. Nulo = ainda não se sabe. */
+export type FormaPagamento = 'particular' | 'convenio'
+
+export interface Convenio {
+  id: string
+  nome: string
+  /** Desativado some da Letícia e das listas de escolha. Convênio em uso não se apaga. */
+  ativo: boolean
+  observacoes: string | null
+  created_at: string
+}
+
 export interface Usuario {
   id: string
   nome: string
@@ -183,6 +195,14 @@ export interface LeadClinica {
   assumido_por: string | null
   assumido_em: string | null
   created_at: string
+  /** Particular ou convênio (0038) — a preferência da pessoa. */
+  forma_pagamento: FormaPagamento | null
+  convenio_id: string | null
+  convenio_carteirinha: string | null
+  /** 'AAAA-MM-DD'. */
+  convenio_validade: string | null
+  /** CALCULADA na view `crm_clinica` — nunca grave. */
+  convenio_nome: string | null
 }
 
 export interface Consulta {
@@ -215,6 +235,12 @@ export interface Consulta {
   interesse: string | null
   /** Quando a pessoa confirmou presença (SIM ao lembrete, ou a equipe marcou). Volta a nulo se remarcar. */
   confirmada_em: string | null
+  /**
+   * Particular ou pelo convênio (0038). Preenchida SOZINHA na marcação pela
+   * ficha da pessoa (convênio + serviço coberto → convênio; senão particular).
+   */
+  forma_pagamento: FormaPagamento | null
+  convenio_id: string | null
   cancelado_em: string | null
   motivo_cancelamento: string | null
   created_at: string

@@ -55,7 +55,7 @@ const TEXTO = { type: 'string' }
  * O banco continua conferindo por baixo (`0022` e `0023`): `enum` é o que
  * impede o erro, a trigger é o que garante que ele não passe.
  */
-export function ferramentasCom(procedimentos: string[]): DefinicaoFerramenta[] {
+export function ferramentasCom(procedimentos: string[], convenios: string[] = []): DefinicaoFerramenta[] {
   // Sem catálogo (falha de leitura), volta ao texto livre em vez de travar a
   // secretária inteira. Um `enum` vazio é recusado pelos dois fornecedores, e o
   // resultado seria ela parar de responder — muito pior que uma grafia solta.
@@ -76,6 +76,18 @@ export function ferramentasCom(procedimentos: string[]): DefinicaoFerramenta[] {
         novas[campo] = { ...doCatalogo, description: (novas[campo] as { description?: string }).description }
         mudou = true
       }
+    }
+    // Os convênios ATIVOS, pelo mesmo motivo do catálogo: sem lista, ela
+    // grava "Amil saúde" num dia e "amil" no outro. Sem convênio cadastrado,
+    // o campo sai da ferramenta — não há o que escolher.
+    if ('convenio' in novas) {
+      const lista = convenios.filter((c) => c.trim())
+      if (lista.length) {
+        novas.convenio = { type: 'string', enum: lista, description: (novas.convenio as { description?: string }).description }
+      } else {
+        delete novas.convenio
+      }
+      mudou = true
     }
     if ('servicos_interesse' in novas) {
       const atual = novas.servicos_interesse as { description?: string }
@@ -270,6 +282,23 @@ export const FERRAMENTAS: DefinicaoFerramenta[] = [
             'marcar, escolheu o meio-dia e depois pediu para remarcar por ' +
             'causa de um compromisso. Agendamento marcado para 02/09 às 15h, ' +
             'com o Marcos."',
+        },
+        forma_pagamento: {
+          type: 'string',
+          enum: ['particular', 'convenio'],
+          description:
+            'Se a pessoa vai ser atendida no particular ou pelo convênio. Só ' +
+            'mande quando ELA disser. Com "convenio", mande também o campo convenio.',
+        },
+        convenio: {
+          type: 'string',
+          description:
+            'Qual convênio, exatamente como está na lista de convênios aceitos. ' +
+            'Convênio que não está na lista a clínica não aceita — não grave.',
+        },
+        carteirinha: {
+          type: 'string',
+          description: 'O número da carteirinha do convênio, se a pessoa informar.',
         },
       },
       additionalProperties: false,
@@ -777,6 +806,38 @@ export async function executar(
         }
         const resumo = arrumarResumo(String(args.resumo ?? ''))
         if (resumo) campos.resumo_conversa = resumo.slice(0, 2000)
+
+        // PARTICULAR OU CONVÊNIO (migração 0038). O nome vira o id aqui, e só
+        // de convênio ATIVO: convênio que a clínica não aceita não entra na
+        // ficha — volta como recusa, para ela oferecer o particular.
+        const forma = String(args.forma_pagamento ?? '')
+        const qualConvenio = String(args.convenio ?? '').trim()
+        if (forma === 'particular') {
+          campos.forma_pagamento = 'particular'
+          campos.convenio_id = null
+        } else if (forma === 'convenio' || qualConvenio) {
+          const achado = qualConvenio
+            ? await selecionar<{ id: string }>(
+              `convenios?select=id&ativo=is.true&nome=ilike.${encodeURIComponent(qualConvenio)}&limit=1`,
+            )
+            : []
+          if (!achado.length) {
+            if (Object.keys(campos).length) await atualizar('crm_clinica', `id=eq.${ctx.leadId}`, campos)
+            return {
+              ok: false,
+              motivo: 'convenio_nao_aceito',
+              mensagem:
+                'Esse convênio não está entre os que a clínica aceita. Diga isso com ' +
+                'delicadeza e ofereça o atendimento particular — a avaliação continua ' +
+                'sendo o primeiro passo. O resto da ficha foi gravado.',
+            }
+          }
+          campos.forma_pagamento = 'convenio'
+          campos.convenio_id = achado[0].id
+        }
+        const carteirinha = String(args.carteirinha ?? '').trim()
+        if (carteirinha) campos.convenio_carteirinha = carteirinha.slice(0, 40)
+
         if (!Object.keys(campos).length) return { ok: true, nada_a_fazer: true }
 
         // `crm_clinica` é view auto-atualizável. Nunca escrever em

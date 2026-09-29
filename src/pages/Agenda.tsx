@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, X, Clock, User, BriefcaseBusiness, ArrowRight, Ban,
-  Check, UserX, CircleCheck,
+  Check, UserX, CircleCheck, CreditCard,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -19,6 +19,7 @@ import AgendaDiaCelular from '../components/AgendaDiaCelular'
 import { useTelaPequena } from '../lib/useTelaPequena'
 import { useAcesso } from '../lib/acesso'
 import { COLUNAS_CONSULTA } from '../lib/consultas'
+import { useConvenios, rotuloForma, valorDaEscolha, escolhaParaCampos } from '../lib/convenios'
 import NovoAgendamentoModal from '../components/NovoAgendamentoModal'
 import type {
   ConsultaAgenda, Profissional, ProfissionalBloqueio, ProfissionalHorario,
@@ -100,6 +101,23 @@ function DetalheConsulta({
    * telefone, ou o SIM que chegou de outro jeito. O mesmo campo que o SIM ao
    * lembrete preenche (migração 0037).
    */
+  /**
+   * Particular ou convênio (0038). A consulta já nasce com a forma da ficha
+   * (gatilho no banco); aqui a recepção corrige — o paciente trouxe a
+   * carteirinha, ou decidiu pagar particular.
+   */
+  const convenios = useConvenios()
+  const [trocandoForma, setTrocandoForma] = useState(false)
+  const trocarForma = async (valor: string) => {
+    setTrocandoForma(true); setErro('')
+    const campos = escolhaParaCampos(valor)
+    const { error } = await supabase.from('consultas').update(campos).eq('id', consulta.id)
+    setTrocandoForma(false)
+    if (error) { setErro('Não consegui salvar a forma de pagamento. Tente de novo.'); return }
+    onCancelada({ ...consulta, ...campos })
+  }
+  const nomeConvenio = convenios.find((c) => c.id === consulta.convenio_id)?.nome ?? null
+
   const alternarConfirmacao = async () => {
     setMarcandoConfirmacao(true); setErro('')
     const nova = consulta.confirmada_em ? null : new Date().toISOString()
@@ -176,6 +194,22 @@ function DetalheConsulta({
                 <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 600, background: MARCA_SUAVE, color: MARCA }}>
                   Agente de IA
                 </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, color: '#16232B', flexWrap: 'wrap' }}>
+              <CreditCard size={14} color="#6B818C" />
+              {podeEditar && consulta.status !== 'cancelada' ? (
+                <select value={valorDaEscolha(consulta.forma_pagamento, consulta.convenio_id)} disabled={trocandoForma}
+                  onChange={(e) => void trocarForma(e.target.value)}
+                  style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #DCE6EA', fontSize: 13, fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#16232B', background: '#fff' }}>
+                  <option value="">Pagamento não informado</option>
+                  <option value="particular">Particular</option>
+                  {convenios.filter((c) => c.ativo || c.id === consulta.convenio_id).map((c) => (
+                    <option key={c.id} value={c.id}>Convênio {c.nome}</option>
+                  ))}
+                </select>
+              ) : (
+                <span>{rotuloForma(consulta.forma_pagamento, nomeConvenio)}</span>
               )}
             </div>
             {podeEditar && consulta.status === 'agendada' && !jaAconteceu && (

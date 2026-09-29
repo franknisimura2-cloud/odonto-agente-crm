@@ -257,6 +257,12 @@ nesta ordem** — cada um depende do anterior:
     `lembretes_pendentes()`, `confirmar_presenca()` e `disparar_lembretes()`.
     Ver a seção 4.21.
 
+38. `supabase/migrations/0038_convenios.sql` — convênios (CRM Odonto): as
+    tabelas `convenios`, `convenio_coberturas` e `convenio_repasses` (esta só
+    com `valores`), particular/convênio na ficha e na consulta, o gatilho que
+    preenche a forma da consulta pela ficha, e as duas visões da Letícia com
+    os convênios aceitos e a cobertura de cada serviço. Ver a seção 4.22.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -1863,6 +1869,42 @@ como `lembretes_url`; o segredo é o mesmo `followup_segredo`).
 
 ---
 
+### 4.22. Convênios (migração `0038`)
+
+A primeira peça da roda da clínica odontológica: o convênio traz o paciente, o
+plano de tratamento converte o que ele não cobre em particular, o retorno
+semestral traz de volta.
+
+| Peça | O que é |
+|---|---|
+| `convenios` | Os convênios aceitos. **Não se apaga em uso** (ficha e consulta apontam com `ON DELETE RESTRICT`): desativa-se, e ele some da Letícia e das listas |
+| `convenio_coberturas` | A linha existir = o convênio cobre aquele serviço |
+| `convenio_repasses` | Quanto o convênio paga à clínica por serviço. **RLS por `valores`**, para ler e para alterar — para os outros a leitura volta vazia |
+| `crm_clinica_dados.forma_pagamento` | `particular`, `convenio` ou nulo (não se sabe), com `convenio_id`, `convenio_carteirinha` e `convenio_validade` |
+| `consultas.forma_pagamento` | Idem, com `convenio_id`. Check: convênio exige qual; particular não tem convênio |
+| `crm_clinica.convenio_nome` | Calculada na visão, para a tela e para a ficha da Letícia |
+
+**A regra da consulta** (gatilho `consultas_forma_pagamento_padrao`, antes do
+insert, só quando a forma vem vazia — vale para a tela, a Letícia e a API):
+ficha convênio X + serviço coberto por X → convênio X; ficha convênio X +
+serviço não coberto → particular (a conversão); ficha particular → particular;
+ficha em branco → em branco. Quando a ficha é preenchida depois, o gatilho
+`leads_completa_forma_pagamento` completa as consultas **futuras e em branco**
+— nunca mexe no que alguém escolheu.
+
+Os dois gatilhos são `SECURITY DEFINER`: quem marca a consulta pode não ver a
+ficha, e quem edita a ficha pode não mexer na agenda — sem isso, a regra
+falharia calada justo para a recepção. A regra em si
+(`forma_pagamento_padrao`) é só da `service_role`.
+
+**A Letícia**: `informacoes_clinica_agente` ganha "Convênios aceitos: …" e
+`procedimentos_clinica_agente`, "Cobertura de convênio: …" em cada serviço
+coberto. A ferramenta `atualizar_ficha` grava `forma_pagamento`, `convenio`
+(enum dos ativos) e `carteirinha`; convênio fora da lista volta como recusa
+(`convenio_nao_aceito`), e ela oferece o particular.
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -1983,7 +2025,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 15 tabelas**. São 15 políticas:
+RLS está **ativo nas 18 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -2435,7 +2477,7 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 15 tabelas + 5 views, mais a `_migracoes_aplicadas`
+-- Objetos criados (esperado: 18 tabelas + 5 views, mais a `_migracoes_aplicadas`
 -- de quem usa o scripts/aplicar-migracoes.mjs)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
@@ -2445,7 +2487,7 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 39 — 29 em public + 10 em storage)
+-- Políticas (esperado: 44 — 34 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
@@ -2454,7 +2496,8 @@ where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 --    (A `0030` acrescentou a 15ª, a de leitura de `agente_followups`. A `0031`,
 --    dos níveis de acesso, separou leitura de alteração em quase todas as
 --    tabelas: 28 em public. A `0037` acrescentou a leitura de
---    `agente_lembretes`: 29. Os testes da 0031 e da 0037 conferem este número.)
+--    `agente_lembretes`: 29. A `0038` (convênios) acrescentou cinco: 34.
+--    Os testes da 0031, 0037 e 0038 conferem este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 
