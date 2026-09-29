@@ -23,11 +23,11 @@ insert into public.convenios (id, nome) values
   ('c1000000-0000-0000-0000-00000000000c', 'Convênio Inativo');
 update public.convenios set ativo = false where id = 'c1000000-0000-0000-0000-00000000000c';
 insert into public.convenio_coberturas (convenio_id, servico_id)
-select 'c0000000-0000-0000-0000-00000000000c', coberto_id from s
+select 'c0000000-0000-0000-0000-00000000000c'::uuid, coberto_id from s
 union all
-select 'c1000000-0000-0000-0000-00000000000c', descoberto_id from s;
+select 'c1000000-0000-0000-0000-00000000000c'::uuid, descoberto_id from s;
 insert into public.convenio_repasses (convenio_id, servico_id, valor)
-select 'c0000000-0000-0000-0000-00000000000c', coberto_id, 87.50 from s;
+select 'c0000000-0000-0000-0000-00000000000c'::uuid, coberto_id, 87.50 from s;
 
 insert into public.profissionais (id, nome, sobrenome, cor)
 values ('f0000000-0000-0000-0000-00000000000f', 'Prof', 'Teste', '#123456');
@@ -127,6 +127,10 @@ begin
   insert into r (ok, texto) select count(*) = 0, 'recepção NÃO vê o repasse' from public.convenio_repasses;
   insert into r (ok, texto) select count(*) = 1, 'recepção lê a ficha com o convênio (nome pela visão)'
     from public.crm_clinica where id = '11111111-0000-0000-0000-000000000003' and convenio_nome = 'Convênio Teste';
+end $$;
+-- Bloco à parte: a exceção esperada desfaz o que o bloco gravou antes dela.
+do $$
+begin
   insert into public.convenios (nome) values ('Tentativa da recepção');
   insert into r (ok, texto) values (false, 'ERRO: recepção criou convênio');
 exception when insufficient_privilege then

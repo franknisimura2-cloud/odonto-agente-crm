@@ -263,6 +263,10 @@ nesta ordem** — cada um depende do anterior:
     preenche a forma da consulta pela ficha, e as duas visões da Letícia com
     os convênios aceitos e a cobertura de cada serviço. Ver a seção 4.22.
 
+39. `supabase/migrations/0039_cobertura_pontuacao.sql` — a mesma visão
+    `procedimentos_clinica_agente`, com o ponto antes de "Cobertura de
+    convênio" quando a descrição do serviço não termina em ponto.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
