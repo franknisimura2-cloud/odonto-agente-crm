@@ -30,9 +30,11 @@ ws.addEventListener('message', (e) => {
 const cmd = (method, params = {}) => new Promise((r) => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })) })
 
 await cmd('Runtime.enable')
+// SEM_MOCK=1: fala com o Supabase de verdade (as páginas sem login, como o
+// link do plano de tratamento, que só a chave pública alcança).
 const { responder } = await import('./mock.mjs')
-await cmd('Fetch.enable', { patterns: [{ urlPattern: '*supabase.co/*' }] })
-ws.addEventListener('message', (e) => {
+if (!process.env.SEM_MOCK) await cmd('Fetch.enable', { patterns: [{ urlPattern: '*supabase.co/*' }] })
+if (!process.env.SEM_MOCK) ws.addEventListener('message', (e) => {
   const m = JSON.parse(e.data)
   if (m.method !== 'Fetch.requestPaused') return
   const { requestId, request } = m.params

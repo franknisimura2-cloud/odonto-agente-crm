@@ -62,18 +62,18 @@ grant usage, select on sequence r_n_seq to authenticated, anon;
 
 -- ===================== A ESTRUTURA =====================
 insert into r (ok, texto)
-select count(*) filter (where schemaname = 'public') = 39 and count(*) filter (where schemaname = 'storage') = 10,
-       'políticas: ' || count(*) filter (where schemaname = 'public') || ' em public (esperado 39), '
+select count(*) filter (where schemaname = 'public') = 41 and count(*) filter (where schemaname = 'storage') = 10,
+       'políticas: ' || count(*) filter (where schemaname = 'public') || ' em public (esperado 41), '
        || count(*) filter (where schemaname = 'storage') || ' em storage (esperado 10)'
   from pg_policies where schemaname in ('public', 'storage');
 
 insert into r (ok, texto)
 -- As duas da 0031 e as duas da 0033: o teste roda contra o banco de hoje.
 select coalesce(array_agg(p.proname order by p.proname), '{}')
-         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'valor_pago_visivel', 'valores_das_consultas']::name[],
+         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'plano_aprovar', 'plano_publico', 'valor_pago_visivel', 'valores_das_consultas']::name[],
        'funções que passam por cima do RLS e a equipe chama: '
        || coalesce(string_agg(p.proname, ', ' order by p.proname), 'nenhuma')
-       || ' (esperado: as quatro dos valores pagos)'
+       || ' (esperado: as quatro dos valores pagos + as duas do link do plano)'
   from pg_proc p
  where p.pronamespace = 'public'::regnamespace and p.prosecdef
    and p.prorettype <> 'trigger'::regtype

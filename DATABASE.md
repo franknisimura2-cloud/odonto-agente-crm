@@ -272,6 +272,13 @@ nesta ordem** — cada um depende do anterior:
     só pelo gatilho), numeração FDI conferida no banco, e a permissão nova
     `odontograma` (Admin e profissional por padrão). Ver a seção 4.23.
 
+41. `supabase/migrations/0041_planos_tratamento.sql` — plano de tratamento em
+    etapas: `planos_tratamento` e `plano_itens`, cobertura e valor dos itens
+    preenchidos pela ficha, status do plano calculado pelos itens, a baixa da
+    consulta marcando o item como feito, a permissão nova `orcamentos`, e o
+    link do paciente (`plano_publico` e `plano_aprovar`, sem login). Ver a
+    seção 4.24.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -1939,6 +1946,45 @@ tenta registrar o apagamento de quem já não existe).
 
 ---
 
+### 4.24. Plano de tratamento (migração `0041`)
+
+O que converte o paciente de convênio em particular: o plano sai do
+odontograma, em etapas (1 urgência e saúde, 2 reabilitação, 3 estética; até 5),
+e mostra item por item o que o convênio cobre e o que é particular.
+
+| Peça | O que é |
+|---|---|
+| `planos_tratamento` | O plano: `status` (`rascunho`, `apresentado`, `parcial`, `aprovado`, `recusado`, `concluido`), `desconto`, `validade`, `observacoes` (aparecem para o paciente) e o `token` do link |
+| `plano_itens` | Cada procedimento: serviço (e o nome congelado em `procedimento`), dente e faces, `etapa`, `cobertura` + `convenio_id`, `valor` (o que o paciente paga), `status` (`pendente`, `aprovado`, `recusado`, `feito`), a `consulta_id` que o executa e o `registro_id` do odontograma de onde veio |
+
+**Sozinho, no banco:**
+
+- **Cobertura e valor** (`plano_itens_padrao`, na criação do item, quando não
+  vêm ditos): ficha de convênio + serviço coberto → convênio, R$ 0; senão
+  particular, com o `preco_a_partir_de` do serviço. Trocar o serviço de um
+  item, na tela, recria o item para a regra valer de novo.
+- **Status do plano** (`plano_recalcula`, a cada mudança de item, só depois
+  de apresentado): todos aprovados → aprovado; alguns → parcial; todos
+  recusados → recusado; todos feitos → concluído. `decidido_em` marca a
+  primeira decisão.
+- **Item feito** (`consultas_marca_item_feito`): a consulta ligada ao item
+  recebeu baixa "compareceu".
+
+**O link do paciente** (`/orcamento/<token>`, sem login): `plano_publico`
+devolve só o primeiro nome, o nome da clínica e os itens (nada de telefone,
+ficha ou odontograma), e só para plano já apresentado. `plano_aprovar` aprova
+as etapas escolhidas, só em plano apresentado ou parcial e dentro da validade.
+São as exceções 5 e 6 da conferência de funções da seção 10 — `SECURITY
+DEFINER` e abertas ao `anon` de propósito; o token (uuid aleatório) é o que
+protege.
+
+**Quem vê e mexe:** a permissão nova `orcamentos` (só a Admin, por padrão) ou
+`odontograma` (o dentista, que monta o plano), sempre de quem se vê a ficha.
+O plano não move o status da pessoa no funil: quem recebe plano já passou pela
+avaliação e costuma estar em Clientes. O acompanhamento é a página Planos.
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -2059,7 +2105,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 21 tabelas**. São 15 políticas:
+RLS está **ativo nas 23 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -2511,7 +2557,7 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 21 tabelas + 5 views, mais a `_migracoes_aplicadas`
+-- Objetos criados (esperado: 23 tabelas + 5 views, mais a `_migracoes_aplicadas`
 -- de quem usa o scripts/aplicar-migracoes.mjs)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
@@ -2521,7 +2567,7 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 49 — 39 em public + 10 em storage)
+-- Políticas (esperado: 51 — 41 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
@@ -2531,8 +2577,8 @@ where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 --    dos níveis de acesso, separou leitura de alteração em quase todas as
 --    tabelas: 28 em public. A `0037` acrescentou a leitura de
 --    `agente_lembretes`: 29. A `0038` (convênios) acrescentou cinco: 34.
---    A `0040` (odontograma), mais cinco: 39. Os testes da 0031, 0037,
---    0038 e 0040 conferem este número.)
+--    A `0040` (odontograma), mais cinco: 39. A `0041` (planos), mais duas:
+--    41. Os testes da 0031, 0037, 0038, 0040 e 0041 conferem este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 
@@ -2579,11 +2625,13 @@ where c.relnamespace = 'public'::regnamespace and c.relkind = 'v'
 
 -- Funções que passam por cima do RLS e a chave pública chama
 -- (esperado: SÓ `definir_valor_pago`, `definir_valor_pago_consulta`,
--- `valor_pago_visivel` e `valores_das_consultas` — armadilha 23)
+-- `plano_aprovar`, `plano_publico`, `valor_pago_visivel` e
+-- `valores_das_consultas` — armadilha 23)
 --
--- As quatro são exceções de propósito (migrações 0031 e 0033): leem e gravam
--- as colunas de valor pago, que a equipe não alcança, e cada uma confere
--- `pode('valores')` antes. Qualquer OUTRO nome nesta lista é um furo.
+-- As quatro dos valores são exceções de propósito (migrações 0031 e 0033):
+-- leem e gravam as colunas de valor pago, que a equipe não alcança, e cada uma
+-- confere `pode('valores')` antes. As duas do plano (0041) são o link do
+-- paciente, sem login — protegidas pelo token. Qualquer OUTRO nome é um furo.
 select p.proname from pg_proc p
 where p.pronamespace = 'public'::regnamespace and p.prosecdef
   and p.prorettype <> 'trigger'::regtype

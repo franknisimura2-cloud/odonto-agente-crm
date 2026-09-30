@@ -2,7 +2,7 @@
 -- KIT CLÍNICA ODONTOLÓGICA — os serviços
 -- =============================================================================
 --
--- O catálogo da clínica odontológica onde o Núcleo nasceu: 20 serviços, cada
+-- O catálogo da clínica odontológica onde o Núcleo nasceu: 22 serviços, cada
 -- um com a descrição curta (a do catálogo, que vai em toda conversa), a
 -- completa (que a atendente busca quando alguém pergunta), a duração do bloco
 -- na agenda e a avaliação como porta de entrada.
@@ -16,7 +16,7 @@
 --   • "Avaliação Odontológica" como a porta de entrada: sem custo, 30 minutos.
 --     Só pode existir uma porta; se a empresa já tiver outra, esta linha é
 --     pulada, e os tratamentos passam a apontar para a que já existe.
---   • 17 tratamentos que passam pela avaliação antes.
+--   • 19 tratamentos que passam pela avaliação antes.
 --   • Limpeza e Profilaxia e Clareamento Dental, que agendam direto, sem valor
 --     cadastrado.
 --
@@ -119,7 +119,18 @@ from (values
   (20, 'Extração de Siso',
        'Remoção do dente do siso quando nasce torto, fica entalado ou causa dor e infecção',
        'É a remoção do dente do siso, o último a nascer, geralmente entre os 17 e os 25 anos. Nem todo siso precisa sair: o problema é quando ele nasce torto, fica preso, empurra os vizinhos ou vive inflamando. Como fica no fundo, é difícil de higienizar. A cirurgia é com anestesia local e você não sente dor durante. O pós tem inchaço e incômodo nos primeiros dias, com pico por volta do segundo, e gelo e repouso resolvem bem. Só a radiografia mostra se os seus precisam sair.',
-       false, true, null, 60)
+       false, true, null, 60),
+  -- 21 e 22 (CRM Odonto, plano de tratamento): o que o convênio mais cobre e
+  -- o que a cárie e o dente condenado viram no plano. Sem eles, o odontograma
+  -- não tinha serviço para onde ir.
+  (21, 'Restauração em Resina',
+       'Remove a cárie e reconstrói o dente com resina da cor dele',
+       'É o tratamento da cárie e do dente lascado. O dentista remove a parte comprometida e reconstrói o dente com resina, que tem a cor do dente e fica praticamente invisível. É feita com anestesia local, na maioria das vezes numa sessão só, e você sai mastigando normalmente. Quanto mais cedo a cárie é tratada, menor a restauração. Cáries muito profundas podem precisar de tratamento de canal antes.',
+       false, true, null, 45),
+  (22, 'Extração Dentária',
+       'Remoção de um dente que não tem mais como ser salvo',
+       'É a remoção de um dente que não tem mais como ser salvo, por cárie muito extensa, fratura ou doença na gengiva. É feita com anestesia local, e você não sente dor durante. Nos primeiros dias o local fica sensível e pede alimentação macia, sem bochechar com força e sem canudo. Depois de cicatrizar, o dentista conversa sobre como repor o dente, com implante ou prótese, para os vizinhos não se moverem.',
+       false, true, null, 45)
 ) as v (ordem, nome, descricao, descricao_longa, e_avaliacao, exige_avaliacao, preco, duracao)
 where not exists (
   select 1 from public.servicos_clinica s

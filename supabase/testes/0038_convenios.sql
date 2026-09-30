@@ -162,12 +162,12 @@ reset role;
 
 -- A ESTRUTURA
 insert into r (ok, texto)
-select count(*) filter (where schemaname = 'public') = 39,
-       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 39)'
+select count(*) filter (where schemaname = 'public') = 41,
+       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 41)'
   from pg_policies where schemaname in ('public', 'storage');
 insert into r (ok, texto)
 select coalesce(array_agg(p.proname order by p.proname), '{}')
-         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'valor_pago_visivel', 'valores_das_consultas']::name[],
+         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'plano_aprovar', 'plano_publico', 'valor_pago_visivel', 'valores_das_consultas']::name[],
        'funções que furam o RLS e a equipe chama: continuam só as quatro dos valores'
   from pg_proc p
  where p.pronamespace = 'public'::regnamespace and p.prosecdef

@@ -13,6 +13,8 @@ import LeadDetail from './pages/LeadDetail'
 import Configuracoes from './pages/Configuracoes'
 import Procedimentos from './pages/Procedimentos'
 import Convenios from './pages/Convenios'
+import Planos from './pages/Planos'
+import OrcamentoPublico from './pages/OrcamentoPublico'
 import SecretariaIA from './pages/SecretariaIA'
 import TokenApi from './pages/TokenApi'
 import { ExigeAcesso } from './components/AcessoProvider'
@@ -29,6 +31,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* O plano de tratamento visto pelo paciente: sem login (0041). */}
+        <Route path="/orcamento/:token" element={<OrcamentoPublico />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
@@ -43,6 +47,7 @@ export default function App() {
             <Route path="/token-api" element={so((a) => a.pode('configurar'), <TokenApi />)} />
             <Route path="/leads" element={so((a) => a.pode('pessoas'), <Leads />)} />
             <Route path="/clientes" element={so((a) => a.pode('pessoas'), <Clientes />)} />
+            <Route path="/planos" element={so((a) => a.pode('orcamentos') || a.pode('odontograma'), <Planos />)} />
             <Route path="/leads/:id" element={so(veFichas, <LeadDetail />)} />
             <Route path="/configuracoes" element={<Configuracoes />} />
           </Route>

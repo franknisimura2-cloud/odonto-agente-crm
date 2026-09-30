@@ -37,7 +37,7 @@ grant usage, select on sequence r_n_seq to authenticated;
 
 insert into r (ok, texto)
 select coalesce(array_agg(p.proname order by p.proname), '{}')
-         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'valor_pago_visivel', 'valores_das_consultas']::name[],
+         = array['definir_valor_pago', 'definir_valor_pago_consulta', 'plano_aprovar', 'plano_publico', 'valor_pago_visivel', 'valores_das_consultas']::name[],
        'funções que passam por cima do RLS e a equipe chama: '
        || coalesce(string_agg(p.proname, ', ' order by p.proname), 'nenhuma') || ' (esperado: as quatro dos valores)'
   from pg_proc p

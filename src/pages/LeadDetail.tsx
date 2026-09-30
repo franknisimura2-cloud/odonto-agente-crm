@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Phone, Clock, Save, Plus, X, CalendarDays, ClipboardList, MessagesSquare, Smile } from 'lucide-react'
+import { ArrowLeft, Phone, Clock, Save, Plus, X, CalendarDays, ClipboardList, MessagesSquare, Smile, FileText } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { isPaciente } from '../lib/pessoas'
 import { formatarParaExibicao } from '../lib/telefones'
@@ -10,6 +10,8 @@ import { STATUS_CONSULTA, ROTULO_CONSULTA, STATUS_LEAD, ROTULO_LEAD } from '../l
 import CampoTelefone from '../components/CampoTelefone'
 import ApagarEstaPessoa from '../components/ApagarEstaPessoa'
 import Odontograma from '../components/Odontograma'
+import PlanoTratamento from '../components/PlanoTratamento'
+import type { ItemPlano } from '../lib/planos'
 import AvisoForaDaLista from '../components/AvisoForaDaLista'
 import type { LeadClinica, LeadStatus, Consulta, ConsultaStatus, Profissional } from '../types'
 import { MARCA_SUAVE, MARCA, MARCA_CLARO } from '../lib/marca'
@@ -91,8 +93,15 @@ interface NewConsultaForm {
 
 const DURACOES = [15, 30, 45, 60, 90, 120]
 
-function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId: string; profissionais: Profissional[]; onClose: () => void; onSaved: (c: Consulta) => void }) {
-  const [form, setForm] = useState<NewConsultaForm>({ procedimento: '', data_consulta: '', profissional_id: '', duracao_minutos: '60', status: 'agendada', valor_pago: '', observacoes: '' })
+function NewConsultaModal({ leadId, profissionais, onClose, onSaved, item }: {
+  leadId: string; profissionais: Profissional[]; onClose: () => void; onSaved: (c: Consulta) => void
+  /** Agendando um item do plano de tratamento: o serviço e a cobertura vêm dele. */
+  item?: ItemPlano | null
+}) {
+  const [form, setForm] = useState<NewConsultaForm>({
+    procedimento: item?.procedimento ?? '', data_consulta: '', profissional_id: '', duracao_minutos: '60', status: 'agendada', valor_pago: '',
+    observacoes: item?.dente ? `Plano de tratamento: dente ${item.dente}${item.faces.length ? ' ' + item.faces.join('') : ''}` : '',
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const catalogo = useCatalogoProcedimentos()
@@ -113,6 +122,8 @@ function NewConsultaModal({ leadId, profissionais, onClose, onSaved }: { leadId:
       status: form.status,
       origem: 'equipe',
       observacoes: form.observacoes.trim() || null,
+      // Do plano, a cobertura do item vale para a consulta (senão, a regra da ficha — 0038).
+      ...(item ? { forma_pagamento: item.cobertura, convenio_id: item.cobertura === 'convenio' ? item.convenio_id : null } : {}),
     }).select(COLUNAS_CONSULTA).single()
     setSaving(false)
     if (err) {
@@ -288,6 +299,9 @@ export default function LeadDetail() {
   const catalogo = useCatalogoProcedimentos()
 
   const [showModal, setShowModal] = useState(false)
+  // Agendar um item aprovado do plano: o modal abre com ele, e a consulta
+  // criada é ligada ao item (`pronto`).
+  const [itemAgendando, setItemAgendando] = useState<{ item: ItemPlano; pronto: (id: string) => void } | null>(null)
 
   /* Load data */
   useEffect(() => {
@@ -624,6 +638,21 @@ export default function LeadDetail() {
         </SectionCard>
       </div>
 
+      {/* Plano de tratamento (0041) — de quem monta (Orçamentos) ou do dentista (Odontograma). */}
+      {(acesso.pode('orcamentos') || acesso.pode('odontograma')) && (
+        <div className="fade-in-3">
+          <SectionCard title="Plano de tratamento" icon={FileText}>
+            <PlanoTratamento
+              lead={lead}
+              podeEditar={acesso.pode('orcamentos') || acesso.pode('odontograma')}
+              podeEnviar={acesso.pode('conversas')}
+              podeAgendar={acesso.pode('agenda_editar')}
+              onAgendar={(item, pronto) => setItemAgendando({ item, pronto })}
+            />
+          </SectionCard>
+        </div>
+      )}
+
       {/* Visão Completa do Contato */}
       <div className="fade-in-3">
         <SectionCard title="Visão Completa do Contato" icon={ClipboardList}>
@@ -866,6 +895,15 @@ export default function LeadDetail() {
           profissionais={profissionais}
           onClose={() => setShowModal(false)}
           onSaved={(c) => setConsultas((prev) => [c, ...prev])}
+        />
+      )}
+      {itemAgendando && (
+        <NewConsultaModal
+          leadId={lead.id}
+          profissionais={profissionais}
+          item={itemAgendando.item}
+          onClose={() => setItemAgendando(null)}
+          onSaved={(c) => { setConsultas((prev) => [c, ...prev]); itemAgendando.pronto(c.id) }}
         />
       )}
 
