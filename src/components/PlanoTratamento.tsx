@@ -150,7 +150,9 @@ export default function PlanoTratamento({ lead, podeEditar, podeEnviar, podeAgen
     if (!plano) return
     if (!doPlano.length) { setErro('O plano está vazio.'); return }
     if (doPlano.some((i) => !i.servico_id)) { setErro('Há itens sem serviço escolhido.'); return }
-    trocarPlano(await atualizarPlano(plano.id, { status: 'apresentado', apresentado_em: new Date().toISOString() }))
+    // A origem vai junto: é com ela que a Letícia monta o link quando retoma
+    // o plano (0042) — o banco não sabe em que endereço a clínica atende.
+    trocarPlano(await atualizarPlano(plano.id, { status: 'apresentado', apresentado_em: new Date().toISOString(), link_base: window.location.origin }))
     setAviso('Plano apresentado. Envie o link ao paciente — ele aprova por etapa.')
   })
 

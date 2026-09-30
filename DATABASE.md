@@ -279,6 +279,12 @@ nesta ordem** — cada um depende do anterior:
     link do paciente (`plano_publico` e `plano_aprovar`, sem login). Ver a
     seção 4.24.
 
+42. `supabase/migrations/0042_planos_retomar.sql` — a Letícia retoma o plano
+    não aprovado: os campos `planos_retomar_*` em `configuracoes_agente`
+    (nascem desligados), `planos_tratamento.link_base`, a tabela
+    `agente_planos_retomadas` e as funções `planos_retomar_pendentes()` e
+    `disparar_planos_retomar()`. Ver a seção 4.25.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -1985,6 +1991,37 @@ avaliação e costuma estar em Clientes. O acompanhamento é a página Planos.
 
 ---
 
+### 4.25. Retomar o plano não aprovado (migração `0042`)
+
+Mesmo desenho do follow-up e dos lembretes: a política inteira em
+`planos_retomar_pendentes()`, o relógio (`npm run planos:ligar`) chama
+`disparar_planos_retomar()` a cada minuto, que só acorda a função `whatsapp`
+(rota `/planos-retomar`) quando há fila.
+
+| Peça | O que é |
+|---|---|
+| `configuracoes_agente.planos_retomar_ativo` | A chave. **Nasce `false`**; liga-se na tela Atendente de IA |
+| `planos_retomar_dias` / `_toques` | Dias de silêncio antes de cada toque (1–30, padrão 3) e máximo de toques (1–3, padrão 2) |
+| `planos_tratamento.link_base` | A origem do sistema, gravada pela tela ao apresentar — o banco não sabe o endereço de cada clínica |
+| `agente_planos_retomadas` | Um registro por toque (`unique (plano_id, toque)` é a reserva), com o texto enviado |
+
+**As travas:** plano apresentado ou parcial, com item pendente e dentro da
+validade; o prazo conta do mais recente entre a apresentação, o último toque e
+a **última mensagem do paciente** (quem está conversando não é retomado);
+janela de horário do follow-up; conversa pausada ou assumida, `nao_perturbe`,
+agente desligada e modo teste — como no resto.
+
+**A mensagem:** escrita pelo modelo, com o resumo do plano (`_shared/planos.ts`:
+o que já foi aprovado, o que falta, os valores exatos) na instrução e a regra de
+não citar valor que não esteja ali. O **link vai numa segunda mensagem, fixa**.
+A rota aceita `?simular=<plano_id>` (com o segredo) para ver o texto sem
+enviar nada.
+
+**A ficha da Letícia** ganha a linha "PLANO DE TRATAMENTO EM ABERTO" para quem
+tem plano pendente — se o paciente tocar no assunto, ela sabe do que se trata.
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -2105,7 +2142,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 23 tabelas**. São 15 políticas:
+RLS está **ativo nas 24 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -2557,7 +2594,7 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 23 tabelas + 5 views, mais a `_migracoes_aplicadas`
+-- Objetos criados (esperado: 24 tabelas + 5 views, mais a `_migracoes_aplicadas`
 -- de quem usa o scripts/aplicar-migracoes.mjs)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
@@ -2567,7 +2604,7 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 51 — 41 em public + 10 em storage)
+-- Políticas (esperado: 52 — 42 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
@@ -2578,7 +2615,8 @@ where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 --    tabelas: 28 em public. A `0037` acrescentou a leitura de
 --    `agente_lembretes`: 29. A `0038` (convênios) acrescentou cinco: 34.
 --    A `0040` (odontograma), mais cinco: 39. A `0041` (planos), mais duas:
---    41. Os testes da 0031, 0037, 0038, 0040 e 0041 conferem este número.)
+--    41. A `0042` (retomada), mais uma: 42. Os testes da 0031, 0037, 0038,
+--    0040, 0041 e 0042 conferem este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 

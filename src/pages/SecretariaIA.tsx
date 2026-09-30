@@ -130,11 +130,17 @@ function Erro({ texto }: { texto: string }) {
 }
 
 /** Os campos de lembrete de `configuracoes_agente`, na ordem em que a tela os edita. */
+// Também leva os três campos da retomada de planos (0042): são salvos pelo
+// mesmo botão, e a comparação de "o que mudou" é uma só.
 type Lembretes = Pick<ConfiguracoesAgente,
+  'planos_retomar_ativo' | 'planos_retomar_dias' | 'planos_retomar_toques' |
   'lembretes_ativo' | 'lembrete_vespera_ativo' | 'lembrete_vespera_horas' |
   'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao'>
 
 const LEMBRETES_PADRAO: Lembretes = {
+  planos_retomar_ativo: false,
+  planos_retomar_dias: 3,
+  planos_retomar_toques: 2,
   lembretes_ativo: false,
   lembrete_vespera_ativo: true,
   lembrete_vespera_horas: 24,
@@ -145,6 +151,9 @@ const LEMBRETES_PADRAO: Lembretes = {
 
 function lembretesDe(c: ConfiguracoesAgente): Lembretes {
   return {
+    planos_retomar_ativo: c.planos_retomar_ativo ?? false,
+    planos_retomar_dias: c.planos_retomar_dias ?? 3,
+    planos_retomar_toques: c.planos_retomar_toques ?? 2,
     lembretes_ativo: c.lembretes_ativo ?? false,
     lembrete_vespera_ativo: c.lembrete_vespera_ativo ?? true,
     lembrete_vespera_horas: c.lembrete_vespera_horas ?? 24,
@@ -828,6 +837,53 @@ export default function SecretariaIA() {
           O lembrete antecipado só sai no horário comercial da {nomeAgente}; o de cima da hora sai
           a qualquer hora. Quem marcou em cima da hora não recebe lembrete do que acabou de combinar,
           e quem pediu para não ser procurado não recebe nada.
+          {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
+        </p>
+      </div>
+
+      {/* ---------------- Retomar planos de tratamento (0042) ---------------- */}
+      <div className="cartao" style={cartao}>
+        <div style={titulo}>Retomar planos de tratamento</div>
+        <p style={{ ...legenda, marginBottom: 16 }}>
+          Quando um plano de tratamento é apresentado e o paciente não decide, a {nomeAgente} volta a
+          falar dele pelo WhatsApp — sem pressão, puxando pela etapa que falta e oferecendo tirar dúvidas.
+          O link do plano vai junto.
+        </p>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
+          <input type="checkbox" checked={lemb.planos_retomar_ativo}
+            onChange={(e) => setLemb({ ...lemb, planos_retomar_ativo: e.target.checked })}
+            style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#16232B' }}>Retomar planos não aprovados</span>
+        </label>
+
+        <fieldset disabled={!lemb.planos_retomar_ativo} style={{
+          border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10,
+          opacity: lemb.planos_retomar_ativo ? 1 : 0.55,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 26 }}>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>Depois de</span>
+            <select value={lemb.planos_retomar_dias}
+              onChange={(e) => setLemb({ ...lemb, planos_retomar_dias: Number(e.target.value) })} style={seletorLembrete}>
+              {[...new Set([2, 3, 5, 7, 10, 15, lemb.planos_retomar_dias])].sort((a, b) => a - b).map((d) => (
+                <option key={d} value={d}>{d} dias</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>sem resposta</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 26 }}>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>No máximo</span>
+            <select value={lemb.planos_retomar_toques}
+              onChange={(e) => setLemb({ ...lemb, planos_retomar_toques: Number(e.target.value) })} style={seletorLembrete}>
+              {[1, 2, 3].map((n) => <option key={n} value={n}>{n === 1 ? '1 vez' : `${n} vezes`}</option>)}
+            </select>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>por plano</span>
+          </div>
+        </fieldset>
+
+        <p style={{ ...legenda, marginTop: 14 }}>
+          Só no horário comercial da {nomeAgente}. Não retoma quem está conversando, quem já aprovou,
+          plano vencido, conversa assumida pela equipe, nem quem pediu para não ser procurado.
           {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
         </p>
       </div>

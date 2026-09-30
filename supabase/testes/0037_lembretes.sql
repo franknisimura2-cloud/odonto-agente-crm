@@ -97,8 +97,8 @@ select count(*) = 0, 'com os lembretes desligados, a fila fica vazia'
 
 -- A estrutura
 insert into r (ok, texto)
-select count(*) filter (where schemaname = 'public') = 41,
-       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 41)'
+select count(*) filter (where schemaname = 'public') = 42,
+       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 42)'
   from pg_policies where schemaname in ('public', 'storage');
 insert into r (ok, texto)
 select not has_function_privilege('authenticated', 'public.lembretes_pendentes()', 'execute')

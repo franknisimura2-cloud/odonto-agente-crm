@@ -24,6 +24,7 @@
  */
 
 import { selecionar } from './db.ts'
+import { planoAberto, linhaDaFicha } from './planos.ts'
 import { PROMPT_OFICIAL } from './prompt-oficial.ts'
 
 const FUSO_PADRAO = 'America/Sao_Paulo'
@@ -208,6 +209,12 @@ export async function montarFicha(
       `Use \`historico_do_cliente\` se a conversa precisar dos detalhes.`,
     )
   }
+
+  // O plano de tratamento em aberto (0041): se ela tocar no assunto — ou
+  // responder à retomada —, a Letícia sabe do que se trata e com que números.
+  // Instalação sem as tabelas de plano (clínica não odontológica): sem linha.
+  const plano = await planoAberto(leadId, fuso).catch(() => null)
+  if (plano) linhas.push(linhaDaFicha(plano))
 
   if (!linhas.length) {
     return 'Você ainda não sabe nada sobre esta pessoa. É a primeira vez que ela escreve para cá.'

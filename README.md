@@ -240,6 +240,10 @@ npm run followup:estado     # o job, as últimas batidas e a fila de agora
 npm run lembretes:ligar     # agenda o relógio dos lembretes (quem liga é a tela)
 npm run lembretes:desligar
 npm run lembretes:estado
+
+npm run planos:ligar        # agenda o relógio da retomada de planos (quem liga é a tela)
+npm run planos:desligar
+npm run planos:estado
 ```
 
 Os de publicar e o `instalar:usuario` leem o seu projeto e o seu token de

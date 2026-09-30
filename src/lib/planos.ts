@@ -24,6 +24,8 @@ export interface Plano {
   desconto: number
   validade: string | null
   token: string
+  /** A origem do sistema ao apresentar (0042): é com ela que a Letícia monta o link. */
+  link_base: string | null
   criado_por: string | null
   created_at: string
   apresentado_em: string | null
@@ -127,7 +129,7 @@ export function linkDoPaciente(token: string): string {
 // Banco
 // ---------------------------------------------------------------------------
 
-const COLUNAS_PLANO = 'id, lead_id, status, observacoes, desconto, validade, token, criado_por, created_at, apresentado_em, decidido_em, updated_at'
+const COLUNAS_PLANO = 'id, lead_id, status, observacoes, desconto, validade, token, link_base, criado_por, created_at, apresentado_em, decidido_em, updated_at'
 const COLUNAS_ITEM = 'id, plano_id, registro_id, servico_id, procedimento, dente, faces, etapa, cobertura, convenio_id, valor, status, consulta_id, observacao, ordem, created_at'
 
 export async function planosDoPaciente(leadId: string): Promise<{ planos: Plano[]; itens: ItemPlano[] }> {

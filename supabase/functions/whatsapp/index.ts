@@ -38,6 +38,7 @@ import { ponteAtiva } from '../_shared/pontes.ts'
 import { avaliarWebhook } from '../_shared/whatsapp.ts'
 import { lerConfirmacao, textoDoLembrete, textoDaConfirmacao, type Lembrete } from '../_shared/lembretes.ts'
 import type { MensagemRecebida, Ponte } from '../_shared/whatsapp.ts'
+import { planoAberto, instrucaoDeRetomada } from '../_shared/planos.ts'
 
 const SEGREDO = Deno.env.get('WEBHOOK_SEGREDO') ?? ''
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
@@ -140,6 +141,7 @@ Deno.serve(async (req) => {
   try {
     if (req.method === 'POST' && rota === '/follow-up') return await rotaFollowUp(req)
     if (req.method === 'POST' && rota === '/lembretes') return await rotaLembretes(req)
+    if (req.method === 'POST' && rota === '/planos-retomar') return await rotaPlanosRetomar(req)
     if (req.method === 'POST' && rota === '/enviar') return await rotaEnviar(req)
     if (req.method === 'GET' && rota === '/prompt-oficial') return await rotaPromptOficial(req)
     if (req.method === 'GET' && rota === '/foto') return await rotaFoto(req)
@@ -854,6 +856,138 @@ async function tratarConfirmacao(ponte: Ponte, leadId: string, whatsapp: string)
     console.error('resposta da confirmação:', e)
   }
   return true
+}
+
+// ---------------------------------------------------------------------------
+// Retomar o plano de tratamento que não foi aprovado (migração 0042)
+//
+// Mesmo desenho do follow-up: o `pg_cron` chama `disparar_planos_retomar()`,
+// que só bate aqui quando há fila; QUEM e QUANDO é da
+// `planos_retomar_pendentes()`. A mensagem é escrita pelo modelo, com os
+// números do plano na instrução (`_shared/planos.ts`); o LINK vai numa segunda
+// mensagem, fixa — o modelo nunca escreve o endereço.
+// ---------------------------------------------------------------------------
+
+interface PlanoPendente {
+  plano_id: string
+  lead_id: string
+  whatsapp: string
+  nome: string | null
+  toque: number
+  link: string | null
+  dias: number
+}
+
+async function rotaPlanosRetomar(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const enviado = req.headers.get('x-webhook-segredo') ?? url.searchParams.get('segredo') ?? ''
+  if (!SEGREDO || enviado !== SEGREDO) {
+    return json({ ok: false, motivo: 'nao_autorizado' }, 401)
+  }
+
+  // SIMULAÇÃO (?simular=<plano_id>): escreve a mensagem daquele plano e
+  // devolve o texto, sem reservar e sem mandar nada. É como se confere o tom
+  // antes de ligar a retomada — e como se testa sem WhatsApp conectado.
+  const simular = url.searchParams.get('simular')
+  if (simular) {
+    const planos = await selecionar<{ lead_id: string }>(`planos_tratamento?select=lead_id&id=eq.${simular}&limit=1`)
+    if (!planos[0]) return json({ ok: false, motivo: 'plano_nao_encontrado' }, 404)
+    const escrita = await escreverRetomada(planos[0].lead_id, simular, 1, 3)
+    return json({ ok: true, simulacao: true, mensagens: escrita?.partes ?? [], motivo: escrita ? null : 'plano_sem_pendencia' })
+  }
+
+  const fila = (await rpc<PlanoPendente[]>('planos_retomar_pendentes', {})).slice(0, MAX_FOLLOWUPS)
+  if (!fila.length) return json({ ok: true, enviados: 0 })
+
+  // Reserva antes do 200, como no follow-up: o `unique (plano_id, toque)`
+  // faz a batida seguinte do relógio não mandar o mesmo toque de novo.
+  const reservados: { p: PlanoPendente; reservaId: string }[] = []
+  for (const p of fila) {
+    try {
+      const linhas = await inserir<{ id: string }>('agente_planos_retomadas', { plano_id: p.plano_id, toque: p.toque }, true)
+      if (linhas.length) reservados.push({ p, reservaId: linhas[0].id })
+    } catch (e) {
+      console.error('reservar retomada de plano:', e)
+    }
+  }
+
+  const trabalho = (async () => {
+    for (const { p, reservaId } of reservados) {
+      try {
+        await mandarRetomadaDePlano(p, reservaId)
+      } catch (e) {
+        console.error(`retomada do plano ${p.plano_id}:`, e)
+        await apagar('agente_planos_retomadas', `id=eq.${reservaId}`).catch(() => {})
+      }
+    }
+  })()
+  emSegundoPlano(trabalho)
+
+  return json({ ok: true, enviados: reservados.length })
+}
+
+/**
+ * Escreve a retomada (o texto do modelo + a mensagem fixa do link), sem
+ * mandar. `null` quando o plano já não tem o que decidir — ela aprovou pelo
+ * link entre a fila e o envio.
+ */
+async function escreverRetomada(
+  leadId: string, planoId: string, toque: number, dias: number,
+): Promise<{ partes: string[] } | null> {
+  const leads = await selecionar<Lead>(`crm_clinica?select=${CAMPOS_LEAD}&id=eq.${leadId}&limit=1`)
+  const lead = leads[0]
+  if (!lead) throw new Error('lead sumiu entre a fila e o envio')
+
+  const [cfg, clinica] = await Promise.all([
+    selecionar<{ modelo: string; prompt: string | null; nome_agente: string; planos_retomar_toques: number }>(
+      'configuracoes_agente?select=modelo,prompt,nome_agente,planos_retomar_toques&limit=1',
+    ),
+    selecionar<{ fuso_horario: string | null }>('configuracoes_clinica?select=fuso_horario&limit=1'),
+  ])
+  const fuso = clinica[0]?.fuso_horario || FUSO_PADRAO
+
+  const plano = await planoAberto(lead.id, fuso)
+  if (!plano || plano.id !== planoId) return null
+
+  const ficha = await montarFicha(lead.id, lead, fuso)
+  const ultimo = toque >= (cfg[0]?.planos_retomar_toques ?? 2)
+  const sistema = (await montarPrompt(cfg[0]?.prompt, ficha, cfg[0]?.nome_agente)) +
+    instrucaoDeRetomada(plano, toque, ultimo, dias)
+
+  const r = await conversar({
+    modelo: cfg[0]?.modelo ?? 'gpt-4.1-mini',
+    sistema,
+    mensagens: await montarHistorico(lead.id),
+    ferramentas: [],
+  })
+  const texto = r.texto.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)[0] ?? ''
+  if (!texto) throw new Error('o modelo devolveu texto vazio')
+
+  return { partes: plano.link ? [texto, `Aqui está o seu plano, para rever quando quiser: ${plano.link}`] : [texto] }
+}
+
+async function mandarRetomadaDePlano(pendente: PlanoPendente, reservaId: string): Promise<void> {
+  const escrita = await escreverRetomada(pendente.lead_id, pendente.plano_id, pendente.toque, pendente.dias)
+  // Entre a fila e o envio ela pode ter aprovado pelo link: nada a retomar.
+  if (!escrita) {
+    await apagar('agente_planos_retomadas', `id=eq.${reservaId}`)
+    return
+  }
+  const { partes } = escrita
+
+  const ponte = await ponteAtiva()
+  for (const parte of partes) {
+    const pausa = Math.min(5000, Math.max(1200, parte.length * 22))
+    await ponte.digitando(pendente.whatsapp, pausa)
+    await new Promise((espere) => setTimeout(espere, pausa))
+    const idExterno = await ponte.enviarTexto(pendente.whatsapp, parte)
+    await inserir('mensagens_whatsapp', {
+      lead_id: pendente.lead_id, autor: 'agente', tipo: 'texto', conteudo: parte, id_externo: idExterno, lida: true,
+    }, true)
+  }
+
+  await atualizar('agente_planos_retomadas', `id=eq.${reservaId}`, { texto: partes.join('\n\n') })
+  console.log(`plano ${pendente.plano_id} retomado (toque ${pendente.toque})`)
 }
 
 // ---------------------------------------------------------------------------

@@ -437,6 +437,12 @@ export interface ConfiguracoesAgente {
   lembrete_antes_minutos: number
   /** A véspera pede "responda SIM"; o SIM vira o selo "Confirmada" na Agenda. */
   lembrete_pedir_confirmacao: boolean
+  /** Retomar o plano de tratamento não aprovado (0042). Nasce FALSE. */
+  planos_retomar_ativo: boolean
+  /** 1 a 30 dias de silêncio antes de cada toque. */
+  planos_retomar_dias: number
+  /** 1 a 3 toques no máximo. */
+  planos_retomar_toques: number
   atualizado_por: string | null
   created_at: string
   updated_at: string
