@@ -14,6 +14,7 @@ import Configuracoes from './pages/Configuracoes'
 import Procedimentos from './pages/Procedimentos'
 import Convenios from './pages/Convenios'
 import Planos from './pages/Planos'
+import Retornos from './pages/Retornos'
 import OrcamentoPublico from './pages/OrcamentoPublico'
 import SecretariaIA from './pages/SecretariaIA'
 import TokenApi from './pages/TokenApi'
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/leads" element={so((a) => a.pode('pessoas'), <Leads />)} />
             <Route path="/clientes" element={so((a) => a.pode('pessoas'), <Clientes />)} />
             <Route path="/planos" element={so((a) => a.pode('orcamentos') || a.pode('odontograma'), <Planos />)} />
+            <Route path="/retornos" element={so((a) => a.pode('pessoas'), <Retornos />)} />
             <Route path="/leads/:id" element={so(veFichas, <LeadDetail />)} />
             <Route path="/configuracoes" element={<Configuracoes />} />
           </Route>

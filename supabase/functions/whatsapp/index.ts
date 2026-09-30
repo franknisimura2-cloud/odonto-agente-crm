@@ -39,6 +39,7 @@ import { avaliarWebhook } from '../_shared/whatsapp.ts'
 import { lerConfirmacao, textoDoLembrete, textoDaConfirmacao, type Lembrete } from '../_shared/lembretes.ts'
 import type { MensagemRecebida, Ponte } from '../_shared/whatsapp.ts'
 import { planoAberto, instrucaoDeRetomada } from '../_shared/planos.ts'
+import { retornoDaPessoa, instrucaoDeRetorno } from '../_shared/retornos.ts'
 
 const SEGREDO = Deno.env.get('WEBHOOK_SEGREDO') ?? ''
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
@@ -102,12 +103,15 @@ interface Lead {
   forma_pagamento?: string | null
   convenio_nome?: string | null
   convenio_validade?: string | null
+  convenio_id?: string | null
+  proximo_retorno?: string | null
+  retorno_servico?: string | null
 }
 
 /** As colunas do lead que a ficha do prompt precisa. Uma consulta só. */
 const CAMPOS_LEAD =
   'id,nome_lead,agente_pausado,status,procedimento_interesse,resumo_conversa,' +
-  'forma_pagamento,convenio_nome,convenio_validade'
+  'forma_pagamento,convenio_nome,convenio_validade,convenio_id,proximo_retorno,retorno_servico'
 
 interface Mensagem {
   id: string
@@ -142,6 +146,7 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && rota === '/follow-up') return await rotaFollowUp(req)
     if (req.method === 'POST' && rota === '/lembretes') return await rotaLembretes(req)
     if (req.method === 'POST' && rota === '/planos-retomar') return await rotaPlanosRetomar(req)
+    if (req.method === 'POST' && rota === '/retornos') return await rotaRetornos(req)
     if (req.method === 'POST' && rota === '/enviar') return await rotaEnviar(req)
     if (req.method === 'GET' && rota === '/prompt-oficial') return await rotaPromptOficial(req)
     if (req.method === 'GET' && rota === '/foto') return await rotaFoto(req)
@@ -988,6 +993,109 @@ async function mandarRetomadaDePlano(pendente: PlanoPendente, reservaId: string)
 
   await atualizar('agente_planos_retomadas', `id=eq.${reservaId}`, { texto: partes.join('\n\n') })
   console.log(`plano ${pendente.plano_id} retomado (toque ${pendente.toque})`)
+}
+
+// ---------------------------------------------------------------------------
+// Retorno periódico — a limpeza semestral (migração 0043)
+//
+// Mesmo desenho da retomada de planos: `disparar_retornos()` acorda esta rota
+// quando há fila; QUEM e QUANDO é da `retornos_pendentes()`. O texto é do
+// modelo, com os fatos do retorno na instrução (`_shared/retornos.ts`); a
+// marcação, se ela responder, segue pela conversa normal — com as ferramentas.
+// ---------------------------------------------------------------------------
+
+interface RetornoPendente {
+  lead_id: string
+  whatsapp: string
+  nome: string | null
+  para_data: string
+  servico: string
+  toque: number
+}
+
+async function rotaRetornos(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const enviado = req.headers.get('x-webhook-segredo') ?? url.searchParams.get('segredo') ?? ''
+  if (!SEGREDO || enviado !== SEGREDO) {
+    return json({ ok: false, motivo: 'nao_autorizado' }, 401)
+  }
+
+  // ?simular=<lead_id>: escreve a chamada e devolve, sem reservar nem mandar.
+  const simular = url.searchParams.get('simular')
+  if (simular) {
+    const texto = await escreverRetorno(simular, 1)
+    return json({ ok: true, simulacao: true, mensagens: texto ? [texto] : [], motivo: texto ? null : 'sem_retorno' })
+  }
+
+  const fila = (await rpc<RetornoPendente[]>('retornos_pendentes', {})).slice(0, MAX_FOLLOWUPS)
+  if (!fila.length) return json({ ok: true, enviados: 0 })
+
+  const reservados: { p: RetornoPendente; reservaId: string }[] = []
+  for (const p of fila) {
+    try {
+      const linhas = await inserir<{ id: string }>('agente_retornos', { lead_id: p.lead_id, para_data: p.para_data, toque: p.toque }, true)
+      if (linhas.length) reservados.push({ p, reservaId: linhas[0].id })
+    } catch (e) {
+      console.error('reservar retorno:', e)
+    }
+  }
+
+  const trabalho = (async () => {
+    for (const { p, reservaId } of reservados) {
+      try {
+        const texto = await escreverRetorno(p.lead_id, p.toque)
+        if (!texto) { await apagar('agente_retornos', `id=eq.${reservaId}`); continue }
+        const ponte = await ponteAtiva()
+        const pausa = Math.min(5000, Math.max(1200, texto.length * 22))
+        await ponte.digitando(p.whatsapp, pausa)
+        await new Promise((espere) => setTimeout(espere, pausa))
+        const idExterno = await ponte.enviarTexto(p.whatsapp, texto)
+        await inserir('mensagens_whatsapp', {
+          lead_id: p.lead_id, autor: 'agente', tipo: 'texto', conteudo: texto, id_externo: idExterno, lida: true,
+        }, true)
+        await atualizar('agente_retornos', `id=eq.${reservaId}`, { texto })
+        console.log(`retorno chamado: ${p.lead_id} (toque ${p.toque})`)
+      } catch (e) {
+        console.error(`retorno de ${p.lead_id}:`, e)
+        await apagar('agente_retornos', `id=eq.${reservaId}`).catch(() => {})
+      }
+    }
+  })()
+  emSegundoPlano(trabalho)
+
+  return json({ ok: true, enviados: reservados.length })
+}
+
+/** O texto da chamada, ou `null` se a pessoa já não tem retorno marcado. */
+async function escreverRetorno(leadId: string, toque: number): Promise<string | null> {
+  const leads = await selecionar<Lead>(`crm_clinica?select=${CAMPOS_LEAD}&id=eq.${leadId}&limit=1`)
+  const lead = leads[0]
+  if (!lead) throw new Error('lead sumiu entre a fila e o envio')
+
+  const [cfg, clinica] = await Promise.all([
+    selecionar<{ modelo: string; prompt: string | null; nome_agente: string; retornos_toques: number }>(
+      'configuracoes_agente?select=modelo,prompt,nome_agente,retornos_toques&limit=1',
+    ),
+    selecionar<{ fuso_horario: string | null }>('configuracoes_clinica?select=fuso_horario&limit=1'),
+  ])
+  const fuso = clinica[0]?.fuso_horario || FUSO_PADRAO
+
+  const retorno = await retornoDaPessoa(lead.id, lead, fuso)
+  if (!retorno) return null
+
+  const ficha = await montarFicha(lead.id, lead, fuso)
+  const sistema = (await montarPrompt(cfg[0]?.prompt, ficha, cfg[0]?.nome_agente)) +
+    instrucaoDeRetorno(retorno, toque, toque >= (cfg[0]?.retornos_toques ?? 2))
+
+  const r = await conversar({
+    modelo: cfg[0]?.modelo ?? 'gpt-4.1-mini',
+    sistema,
+    mensagens: await montarHistorico(lead.id),
+    ferramentas: [],
+  })
+  const texto = r.texto.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)[0] ?? ''
+  if (!texto) throw new Error('o modelo devolveu texto vazio')
+  return texto
 }
 
 // ---------------------------------------------------------------------------

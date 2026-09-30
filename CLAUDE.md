@@ -41,7 +41,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 42), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 44), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 
@@ -160,6 +160,11 @@ A **retomada de planos de tratamento** (`0042`, CRM Odonto) é o terceiro par:
 manda nada enquanto a chave da tela (`planos_retomar_ativo`) estiver desligada.
 Para conferir o texto sem enviar: `POST /whatsapp/planos-retomar?simular=<plano_id>`
 com o `x-webhook-segredo`. Ver a seção 4.25 do `DATABASE.md`.
+
+O **retorno periódico** (`0043`, a limpeza semestral) é o quarto:
+`npm run retornos:ligar` (`:desligar`, `:estado`), chave `retornos_ativo` na
+tela, simulação em `POST /whatsapp/retornos?simular=<lead_id>`. Ver a seção
+4.26 do `DATABASE.md`.
 
 E os do Agente de IA (ver [`agente-ia/README.md`](agente-ia/README.md)):
 

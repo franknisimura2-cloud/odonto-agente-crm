@@ -127,6 +127,10 @@ export interface ServicoClinica {
    * Ignorado quando o serviço passa pela porta — por isso o campo some do modal.
    */
   preco_a_partir_de: number | null
+  /** Valor de tabela do plano de tratamento (0044) — interno, a Letícia não lê. */
+  valor_tabela: number | null
+  /** Em quantos meses quem fez este serviço deve voltar (0043). Nulo = não gera retorno. */
+  retorno_meses: number | null
   /** Quanto tempo o bloco ocupa na agenda. A avaliação são 30; o resto, 60. */
   duracao_minutos: number
   /**
@@ -203,6 +207,9 @@ export interface LeadClinica {
   convenio_validade: string | null
   /** CALCULADA na view `crm_clinica` — nunca grave. */
   convenio_nome: string | null
+  /** O próximo retorno (0043): anda sozinho na baixa de um serviço com retorno. 'AAAA-MM-DD'. */
+  proximo_retorno: string | null
+  retorno_servico: string | null
 }
 
 export interface Consulta {
@@ -443,6 +450,14 @@ export interface ConfiguracoesAgente {
   planos_retomar_dias: number
   /** 1 a 3 toques no máximo. */
   planos_retomar_toques: number
+  /** Chamar para o retorno (0043). Nasce FALSE. */
+  retornos_ativo: boolean
+  /** Quantos dias antes da data começa a chamar (0 a 60). */
+  retornos_antecedencia: number
+  /** Dias entre uma chamada e a próxima (1 a 60). */
+  retornos_intervalo_dias: number
+  /** 1 a 3 chamadas por retorno. */
+  retornos_toques: number
   atualizado_por: string | null
   created_at: string
   updated_at: string

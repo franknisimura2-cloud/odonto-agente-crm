@@ -285,6 +285,18 @@ nesta ordem** — cada um depende do anterior:
     `agente_planos_retomadas` e as funções `planos_retomar_pendentes()` e
     `disparar_planos_retomar()`. Ver a seção 4.25.
 
+43. `supabase/migrations/0043_retornos.sql` — o retorno periódico (a limpeza
+    semestral): `servicos_clinica.retorno_meses`, `proximo_retorno` e
+    `retorno_servico` na pessoa (a data anda sozinha na baixa), os campos
+    `retornos_*` em `configuracoes_agente` (nascem desligados),
+    `agente_retornos`, `retornos_pendentes()` e `disparar_retornos()`. Ver a
+    seção 4.26.
+
+44. `supabase/migrations/0044_valor_de_tabela.sql` —
+    `servicos_clinica.valor_tabela`: o valor com que o item particular do
+    plano nasce, inclusive nos serviços que passam pela avaliação (que não têm
+    "a partir de"). Interno: a Letícia não lê.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -2022,6 +2034,30 @@ tem plano pendente — se o paciente tocar no assunto, ela sabe do que se trata.
 
 ---
 
+### 4.26. Retorno periódico (migração `0043`)
+
+A roda da fidelização: quem fez a limpeza volta em seis meses.
+
+| Peça | O que é |
+|---|---|
+| `servicos_clinica.retorno_meses` | O serviço que gera retorno e em quanto tempo (1–24; nulo = não gera). Conteúdo de nicho: quem marca a limpeza com 6 é o **kit** odontológico, não a migração |
+| `crm_clinica_dados.proximo_retorno` / `retorno_servico` | A data e o serviço. **Andam sozinhos** (`consultas_marca_retorno`, `SECURITY DEFINER`, na baixa ou no lançamento já realizado): data da consulta + N meses, e só para frente. A equipe corrige na ficha |
+| `configuracoes_agente.retornos_*` | `retornos_ativo` (**nasce `false`**), `retornos_antecedencia` (dias antes, padrão 7), `retornos_intervalo_dias` (entre chamadas, padrão 7), `retornos_toques` (padrão 2) |
+| `agente_retornos` | Uma linha por chamada; `unique (lead_id, para_data, toque)` é a reserva — a data andou, os toques recomeçam |
+
+**As travas** (`retornos_pendentes()`): a partir da antecedência; quem tem
+**qualquer** consulta agendada no futuro não é chamado; quem falou com a
+clínica nas últimas 24 h também não; janela, pausa, assumida, `nao_perturbe`,
+agente desligada e modo teste. O relógio é `npm run retornos:ligar` (rota
+`/retornos`, com `?simular=<lead_id>` para ver o texto sem enviar).
+
+A mensagem é do modelo, com os fatos na instrução (`_shared/retornos.ts`: o
+serviço, a última vez, a data e se o convênio da pessoa cobre). A resposta dela
+segue pela conversa normal, com as ferramentas de agenda. A ficha da Letícia
+ganha a linha do retorno para quem não tem consulta marcada.
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -2142,7 +2178,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 24 tabelas**. São 15 políticas:
+RLS está **ativo nas 25 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -2594,7 +2630,7 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 24 tabelas + 5 views, mais a `_migracoes_aplicadas`
+-- Objetos criados (esperado: 25 tabelas + 5 views, mais a `_migracoes_aplicadas`
 -- de quem usa o scripts/aplicar-migracoes.mjs)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
@@ -2604,7 +2640,7 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 52 — 42 em public + 10 em storage)
+-- Políticas (esperado: 53 — 43 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
@@ -2615,8 +2651,8 @@ where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 --    tabelas: 28 em public. A `0037` acrescentou a leitura de
 --    `agente_lembretes`: 29. A `0038` (convênios) acrescentou cinco: 34.
 --    A `0040` (odontograma), mais cinco: 39. A `0041` (planos), mais duas:
---    41. A `0042` (retomada), mais uma: 42. Os testes da 0031, 0037, 0038,
---    0040, 0041 e 0042 conferem este número.)
+--    41. A `0042` (retomada), mais uma: 42. A `0043` (retornos), mais uma:
+--    43. Os testes da 0031 e da 0037 em diante conferem este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 

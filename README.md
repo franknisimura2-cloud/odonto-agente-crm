@@ -244,6 +244,10 @@ npm run lembretes:estado
 npm run planos:ligar        # agenda o relógio da retomada de planos (quem liga é a tela)
 npm run planos:desligar
 npm run planos:estado
+
+npm run retornos:ligar      # agenda o relógio do retorno periódico (quem liga é a tela)
+npm run retornos:desligar
+npm run retornos:estado
 ```
 
 Os de publicar e o `instalar:usuario` leem o seu projeto e o seu token de

@@ -74,6 +74,8 @@ export default function EditorProcedimento({ procedimento, porta, onSalvo, onFec
   const [exige, setExige] = useState(procedimento.exige_avaliacao)
   const [preco, setPreco] = useState(precoParaCampo(procedimento.preco_a_partir_de))
   const [duracao, setDuracao] = useState(String(procedimento.duracao_minutos ?? 60))
+  const [retorno, setRetorno] = useState(procedimento.retorno_meses ? String(procedimento.retorno_meses) : '')
+  const [tabela, setTabela] = useState(precoParaCampo(procedimento.valor_tabela))
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
   const [erro, setErro] = useState('')
@@ -108,6 +110,8 @@ export default function EditorProcedimento({ procedimento, porta, onSalvo, onFec
         // guardar impede o estado contraditório de existir no banco.
         preco_a_partir_de: passaPelaPorta ? null : lerPreco(preco),
         duracao_minutos: minutos,
+        retorno_meses: retorno ? Number(retorno) : null,
+        valor_tabela: lerPreco(tabela),
       })
       .eq('id', procedimento.id).select().single()
 
@@ -287,6 +291,40 @@ export default function EditorProcedimento({ procedimento, porta, onSalvo, onFec
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/*
+                RETORNO E VALOR DE TABELA (0043 e 0044) — os dois são da clínica,
+                não da conversa: a Letícia não fala o valor de tabela, e o
+                retorno só vira chamada quando o retorno está ligado na tela
+                Atendente de IA.
+              */}
+              <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 14, paddingTop: 13, borderTop: '1px solid #E4EDF0' }}>
+                <div>
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#6B818C', display: 'block', marginBottom: 5 }}>
+                    Retorno
+                  </label>
+                  <select value={retorno} onChange={(e) => setRetorno(e.target.value)}
+                    style={{ ...campo, width: 'auto', padding: '7px 10px', fontSize: 13 }}>
+                    <option value="">Não gera retorno</option>
+                    {[3, 4, 6, 12].map((m) => <option key={m} value={m}>Voltar em {m} meses</option>)}
+                  </select>
+                  <div style={{ ...ajuda, maxWidth: 220 }}>Quem fizer este serviço ganha a data do próximo retorno.</div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#6B818C', display: 'block', marginBottom: 5 }}>
+                    Valor de tabela (plano de tratamento)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #DCE6EA', borderRadius: 9, paddingLeft: 9, background: '#fff', width: 'fit-content' }}>
+                    <span style={{ fontSize: 12.5, color: '#9AAEB6' }}>R$</span>
+                    <input value={tabela}
+                      onChange={(e) => setTabela(e.target.value)}
+                      onBlur={() => setTabela(precoParaCampo(lerPreco(tabela)))}
+                      placeholder="vazio"
+                      style={{ width: 92, padding: '7px 9px', border: 'none', fontSize: 13, fontFamily: FONTE, color: '#16232B', outline: 'none', background: 'transparent' }} />
+                  </div>
+                  <div style={{ ...ajuda, maxWidth: 240 }}>O valor com que o item particular nasce no plano. A {nomeAgente} não fala este valor.</div>
+                </div>
               </div>
             </div>
 

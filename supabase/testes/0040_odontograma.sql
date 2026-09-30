@@ -135,8 +135,8 @@ select count(*) = 0, 'apagar a pessoa apaga o odontograma e o histórico dela'
 
 -- A ESTRUTURA
 insert into r (ok, texto)
-select count(*) filter (where schemaname = 'public') = 42,
-       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 42)'
+select count(*) filter (where schemaname = 'public') = 43,
+       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 43)'
   from pg_policies where schemaname in ('public', 'storage');
 insert into r (ok, texto)
 select coalesce(array_agg(p.proname order by p.proname), '{}')

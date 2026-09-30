@@ -151,3 +151,26 @@ on conflict do nothing;
 --
 --   select procedimento from public.procedimentos_clinica_agente;
 --   -- o catálogo como a atendente lê
+
+-- =============================================================================
+-- O RETORNO (migração 0043): a limpeza traz a pessoa de volta em seis meses.
+-- Só marca se ninguém mexeu ainda — a clínica pode ter escolhido outro prazo.
+-- =============================================================================
+
+update public.servicos_clinica set retorno_meses = 6
+ where lower(trim(nome)) = 'limpeza e profilaxia' and retorno_meses is null;
+
+-- E quem já fez limpeza ganha a data do próximo retorno (a mesma conta da 0043).
+update public.crm_clinica_dados l
+   set proximo_retorno = x.data, retorno_servico = x.procedimento
+  from (
+    select distinct on (c.lead_id) c.lead_id, c.procedimento,
+           ((c.data_consulta at time zone coalesce(
+               (select nullif(fuso_horario, '') from public.configuracoes_clinica limit 1), 'America/Sao_Paulo'))::date
+             + make_interval(months => s.retorno_meses))::date as data
+      from public.consultas c
+      join public.servicos_clinica s on lower(trim(s.nome)) = lower(trim(c.procedimento)) and s.retorno_meses is not null
+     where c.status = 'realizada'
+     order by c.lead_id, c.data_consulta desc
+  ) x
+ where l.id = x.lead_id and (l.proximo_retorno is null or l.proximo_retorno < x.data);

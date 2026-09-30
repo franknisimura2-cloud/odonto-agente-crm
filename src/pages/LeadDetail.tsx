@@ -291,6 +291,7 @@ export default function LeadDetail() {
   const [formaEscolha, setFormaEscolha] = useState('')
   const [carteirinha, setCarteirinha] = useState('')
   const [validade, setValidade] = useState('')
+  const [retorno, setRetorno] = useState('')
   const convenios = useConvenios()
   const [savingFicha, setSavingFicha] = useState(false)
   const [fichaSaved, setFichaSaved] = useState(false)
@@ -324,6 +325,7 @@ export default function LeadDetail() {
         setFormaEscolha(valorDaEscolha(leadData.forma_pagamento, leadData.convenio_id))
         setCarteirinha(leadData.convenio_carteirinha ?? '')
         setValidade(leadData.convenio_validade ?? '')
+        setRetorno(leadData.proximo_retorno ?? '')
       }
       const lista = (consultasData ?? []) as unknown as Consulta[]
       setConsultas(lista)
@@ -404,6 +406,7 @@ export default function LeadDetail() {
       ...escolhaParaCampos(formaEscolha),
       convenio_carteirinha: formaEscolha && formaEscolha !== 'particular' ? (carteirinha.trim() || null) : null,
       convenio_validade: formaEscolha && formaEscolha !== 'particular' ? (validade || null) : null,
+      proximo_retorno: retorno || null,
     }
     if (whatsappTocado) campos.whatsapp_lead = whatsapp
 
@@ -451,6 +454,7 @@ export default function LeadDetail() {
     setFormaEscolha(valorDaEscolha(atualizado.forma_pagamento, atualizado.convenio_id))
     setCarteirinha(atualizado.convenio_carteirinha ?? '')
     setValidade(atualizado.convenio_validade ?? '')
+    setRetorno(atualizado.proximo_retorno ?? '')
     setWhatsappTocado(false)
     setFichaSaved(true)
     setTimeout(() => setFichaSaved(false), 2000)
@@ -500,6 +504,7 @@ export default function LeadDetail() {
     dataNascimento !== (lead.data_nascimento ? lead.data_nascimento.slice(0, 10) : '') ||
     valorPago !== (lead.valor_pago_acumulado !== null && lead.valor_pago_acumulado !== undefined ? String(lead.valor_pago_acumulado) : '') ||
     formaEscolha !== valorDaEscolha(lead.forma_pagamento, lead.convenio_id) ||
+    retorno !== (lead.proximo_retorno ?? '') ||
     (formaEscolha !== '' && formaEscolha !== 'particular' && (
       carteirinha.trim() !== (lead.convenio_carteirinha ?? '') || validade !== (lead.convenio_validade ?? '')))
 
@@ -787,6 +792,15 @@ export default function LeadDetail() {
                 {convenios.length === 0 && (
                   <div style={{ fontSize: 12, color: '#6B818C' }}>Nenhum convênio cadastrado — cadastre em Convênios.</div>
                 )}
+              </div>
+            </LinhaFicha>
+
+            {/* O retorno (0043): anda sozinho na baixa de um serviço com
+                retorno (a limpeza). Aqui a equipe corrige ou marca à mão. */}
+            <LinhaFicha rotulo="Próximo retorno">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <input type="date" value={retorno} onChange={(e) => { setRetorno(e.target.value); setFichaError('') }} style={campoStyle} />
+                {lead.retorno_servico && retorno && <span style={{ fontSize: 12.5, color: '#6B818C' }}>{lead.retorno_servico}</span>}
               </div>
             </LinhaFicha>
 

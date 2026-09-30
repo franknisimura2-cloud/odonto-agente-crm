@@ -62,8 +62,8 @@ grant usage, select on sequence r_n_seq to authenticated, anon;
 
 -- ===================== A ESTRUTURA =====================
 insert into r (ok, texto)
-select count(*) filter (where schemaname = 'public') = 42 and count(*) filter (where schemaname = 'storage') = 10,
-       'políticas: ' || count(*) filter (where schemaname = 'public') || ' em public (esperado 42), '
+select count(*) filter (where schemaname = 'public') = 43 and count(*) filter (where schemaname = 'storage') = 10,
+       'políticas: ' || count(*) filter (where schemaname = 'public') || ' em public (esperado 43), '
        || count(*) filter (where schemaname = 'storage') || ' em storage (esperado 10)'
   from pg_policies where schemaname in ('public', 'storage');
 

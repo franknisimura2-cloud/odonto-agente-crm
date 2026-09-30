@@ -25,6 +25,7 @@
 
 import { selecionar } from './db.ts'
 import { planoAberto, linhaDaFicha } from './planos.ts'
+import { retornoDaPessoa, linhaDaFichaRetorno } from './retornos.ts'
 import { PROMPT_OFICIAL } from './prompt-oficial.ts'
 
 const FUSO_PADRAO = 'America/Sao_Paulo'
@@ -71,6 +72,10 @@ export interface DadosDaPessoa {
   forma_pagamento?: string | null
   convenio_nome?: string | null
   convenio_validade?: string | null
+  /** Migração 0043. */
+  convenio_id?: string | null
+  proximo_retorno?: string | null
+  retorno_servico?: string | null
 }
 
 interface ConsultaResumo {
@@ -215,6 +220,14 @@ export async function montarFicha(
   // Instalação sem as tabelas de plano (clínica não odontológica): sem linha.
   const plano = await planoAberto(leadId, fuso).catch(() => null)
   if (plano) linhas.push(linhaDaFicha(plano))
+
+  // O retorno periódico (0043): se ela quiser marcar a limpeza, a Letícia
+  // sabe que está na hora e qual serviço marcar. Quem já tem hora marcada
+  // dispensa a linha — a consulta futura já está na ficha.
+  if (!proxima) {
+    const retorno = await retornoDaPessoa(leadId, pessoa, fuso).catch(() => null)
+    if (retorno) linhas.push(linhaDaFichaRetorno(retorno))
+  }
 
   if (!linhas.length) {
     return 'Você ainda não sabe nada sobre esta pessoa. É a primeira vez que ela escreve para cá.'

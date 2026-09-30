@@ -133,11 +133,16 @@ function Erro({ texto }: { texto: string }) {
 // Também leva os três campos da retomada de planos (0042): são salvos pelo
 // mesmo botão, e a comparação de "o que mudou" é uma só.
 type Lembretes = Pick<ConfiguracoesAgente,
+  'retornos_ativo' | 'retornos_antecedencia' | 'retornos_intervalo_dias' | 'retornos_toques' |
   'planos_retomar_ativo' | 'planos_retomar_dias' | 'planos_retomar_toques' |
   'lembretes_ativo' | 'lembrete_vespera_ativo' | 'lembrete_vespera_horas' |
   'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao'>
 
 const LEMBRETES_PADRAO: Lembretes = {
+  retornos_ativo: false,
+  retornos_antecedencia: 7,
+  retornos_intervalo_dias: 7,
+  retornos_toques: 2,
   planos_retomar_ativo: false,
   planos_retomar_dias: 3,
   planos_retomar_toques: 2,
@@ -151,6 +156,10 @@ const LEMBRETES_PADRAO: Lembretes = {
 
 function lembretesDe(c: ConfiguracoesAgente): Lembretes {
   return {
+    retornos_ativo: c.retornos_ativo ?? false,
+    retornos_antecedencia: c.retornos_antecedencia ?? 7,
+    retornos_intervalo_dias: c.retornos_intervalo_dias ?? 7,
+    retornos_toques: c.retornos_toques ?? 2,
     planos_retomar_ativo: c.planos_retomar_ativo ?? false,
     planos_retomar_dias: c.planos_retomar_dias ?? 3,
     planos_retomar_toques: c.planos_retomar_toques ?? 2,
@@ -837,6 +846,59 @@ export default function SecretariaIA() {
           O lembrete antecipado só sai no horário comercial da {nomeAgente}; o de cima da hora sai
           a qualquer hora. Quem marcou em cima da hora não recebe lembrete do que acabou de combinar,
           e quem pediu para não ser procurado não recebe nada.
+          {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
+        </p>
+      </div>
+
+      {/* ---------------- Retorno periódico (0043) ---------------- */}
+      <div className="cartao" style={cartao}>
+        <div style={titulo}>Retorno periódico (limpeza)</div>
+        <p style={{ ...legenda, marginBottom: 16 }}>
+          Quem fez a limpeza ganha a data do próximo retorno. Chegando perto dela, a {nomeAgente} chama
+          a pessoa para marcar — e diz quando o convênio cobre. Quem já tem horário marcado não é chamado.
+        </p>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
+          <input type="checkbox" checked={lemb.retornos_ativo}
+            onChange={(e) => setLemb({ ...lemb, retornos_ativo: e.target.checked })}
+            style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#16232B' }}>Chamar para o retorno</span>
+        </label>
+
+        <fieldset disabled={!lemb.retornos_ativo} style={{
+          border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10,
+          opacity: lemb.retornos_ativo ? 1 : 0.55,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 26 }}>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>Começar</span>
+            <select value={lemb.retornos_antecedencia}
+              onChange={(e) => setLemb({ ...lemb, retornos_antecedencia: Number(e.target.value) })} style={seletorLembrete}>
+              {[...new Set([0, 3, 7, 14, 30, lemb.retornos_antecedencia])].sort((a, b) => a - b).map((d) => (
+                <option key={d} value={d}>{d === 0 ? 'no dia' : `${d} dias antes`}</option>
+              ))}
+            </select>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>da data do retorno</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 26 }}>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>No máximo</span>
+            <select value={lemb.retornos_toques}
+              onChange={(e) => setLemb({ ...lemb, retornos_toques: Number(e.target.value) })} style={seletorLembrete}>
+              {[1, 2, 3].map((n) => <option key={n} value={n}>{n === 1 ? '1 vez' : `${n} vezes`}</option>)}
+            </select>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>, a cada</span>
+            <select value={lemb.retornos_intervalo_dias}
+              onChange={(e) => setLemb({ ...lemb, retornos_intervalo_dias: Number(e.target.value) })} style={seletorLembrete}>
+              {[...new Set([3, 7, 14, 30, lemb.retornos_intervalo_dias])].sort((a, b) => a - b).map((d) => (
+                <option key={d} value={d}>{d} dias</option>
+              ))}
+            </select>
+          </div>
+        </fieldset>
+
+        <p style={{ ...legenda, marginTop: 14 }}>
+          O serviço que gera retorno (e em quantos meses) se marca em Serviços → Editar. Só no horário
+          comercial; não chama quem falou com a clínica nas últimas 24 horas, conversa assumida pela equipe,
+          nem quem pediu para não ser procurado. A carteira inteira está na página Retornos.
           {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
         </p>
       </div>
