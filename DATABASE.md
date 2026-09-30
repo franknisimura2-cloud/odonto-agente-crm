@@ -267,6 +267,11 @@ nesta ordem** — cada um depende do anterior:
     `procedimentos_clinica_agente`, com o ponto antes de "Cobertura de
     convênio" quando a descrição do serviço não termina em ponto.
 
+40. `supabase/migrations/0040_odontograma.sql` — o odontograma: as tabelas
+    `odontogramas`, `odontograma_registros` e `odontograma_historico` (escrito
+    só pelo gatilho), numeração FDI conferida no banco, e a permissão nova
+    `odontograma` (Admin e profissional por padrão). Ver a seção 4.23.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
@@ -1909,6 +1914,31 @@ coberto. A ferramenta `atualizar_ficha` grava `forma_pagamento`, `convenio`
 
 ---
 
+### 4.23. Odontograma (migração `0040`)
+
+O mapa da boca: dente por dente, face por face. O que está **a tratar** é a
+matéria-prima do plano de tratamento (a fase seguinte).
+
+| Peça | O que é |
+|---|---|
+| `odontogramas` | Um por paciente: `deciduos` mostra os dentes de leite (51–85) |
+| `odontograma_registros` | Cada achado: `dente` (FDI, conferido por `dente_fdi_valido`), `faces` (M, D, O, V, L; vazio = dente inteiro), `condicao`, `situacao` (`a_tratar`, `existente`, `tratado`), `observacao`, quem criou e quem alterou por último |
+| `odontograma_historico` | Criou / alterou / apagou, com o antes e o depois em JSON, quem e quando. **Só o gatilho escreve** (`odontograma_registra`, `SECURITY DEFINER`); a equipe só lê |
+
+**Quem vê:** quem vê a ficha. A política pergunta à própria `crm_clinica_dados`
+(`exists`), e o RLS dela decide — a profissional vê o odontograma de quem ela
+atende, e só esse.
+
+**Quem mexe:** a permissão `odontograma`, nova — Admin e profissional por
+padrão, recepção não. ⚠️ A lista de permissões mora em `permissao_padrao`,
+`minhas_permissoes`, `equipe()` e nos `src/lib/acesso.ts` e `equipe.ts`:
+permissão nova entra em todos.
+
+Apagar a pessoa apaga o odontograma e o histórico em cascata (o gatilho não
+tenta registrar o apagamento de quem já não existe).
+
+---
+
 ## 5. Status do funil
 
 `crm_clinica_dados.status` aceita exatamente estes 9 valores, garantidos por
@@ -2029,7 +2059,7 @@ passa pelo React. Escreveu agendamento, o funil acompanha — venha de onde vier
 **Premissa: sistema interno.** Todo usuário autenticado é da equipe e enxerga
 tudo. Quem não estiver logado não enxerga nada.
 
-RLS está **ativo nas 18 tabelas**. São 15 políticas:
+RLS está **ativo nas 21 tabelas**. São 15 políticas:
 
 | Tabela | Política | Operação | Regra |
 |---|---|---|---|
@@ -2481,7 +2511,7 @@ Lista do que quebra este banco de formas não óbvias:
 Depois de rodar a migração, confira se está tudo de pé:
 
 ```sql
--- Objetos criados (esperado: 18 tabelas + 5 views, mais a `_migracoes_aplicadas`
+-- Objetos criados (esperado: 21 tabelas + 5 views, mais a `_migracoes_aplicadas`
 -- de quem usa o scripts/aplicar-migracoes.mjs)
 select table_name, table_type from information_schema.tables
 where table_schema = 'public' order by table_name;
@@ -2491,7 +2521,7 @@ select relname from pg_class c
 join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 
--- Políticas (esperado: 44 — 34 em public + 10 em storage)
+-- Políticas (esperado: 49 — 39 em public + 10 em storage)
 --
 -- ⚠️ ESTE É O ÚNICO LUGAR DA DOCUMENTAÇÃO ONDE ESTE NÚMERO É ESCRITO.
 --    Ele já esteve em cinco documentos, com três valores diferentes, e
@@ -2501,7 +2531,8 @@ where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
 --    dos níveis de acesso, separou leitura de alteração em quase todas as
 --    tabelas: 28 em public. A `0037` acrescentou a leitura de
 --    `agente_lembretes`: 29. A `0038` (convênios) acrescentou cinco: 34.
---    Os testes da 0031, 0037 e 0038 conferem este número.)
+--    A `0040` (odontograma), mais cinco: 39. Os testes da 0031, 0037,
+--    0038 e 0040 conferem este número.)
 select schemaname, count(*) from pg_policies
 where schemaname in ('public','storage') group by schemaname;
 

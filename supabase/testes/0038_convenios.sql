@@ -162,8 +162,8 @@ reset role;
 
 -- A ESTRUTURA
 insert into r (ok, texto)
-select count(*) filter (where schemaname = 'public') = 34,
-       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 34)'
+select count(*) filter (where schemaname = 'public') = 39,
+       'políticas em public: ' || count(*) filter (where schemaname = 'public') || ' (esperado 39)'
   from pg_policies where schemaname in ('public', 'storage');
 insert into r (ok, texto)
 select coalesce(array_agg(p.proname order by p.proname), '{}')

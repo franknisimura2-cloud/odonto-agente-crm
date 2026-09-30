@@ -16,7 +16,7 @@ import { createContext, useContext } from 'react'
  */
 export type Permissao =
   | 'dashboard' | 'valores' | 'conversas' | 'agenda_todas' | 'agenda_editar'
-  | 'pessoas' | 'crm' | 'exportar' | 'configurar' | 'equipe'
+  | 'pessoas' | 'crm' | 'exportar' | 'configurar' | 'equipe' | 'odontograma'
 
 export type Papel = 'dona' | 'recepcao' | 'profissional'
 

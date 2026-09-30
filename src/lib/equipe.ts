@@ -30,6 +30,7 @@ export const PERMISSOES: { chave: Permissao; nome: string; explica: string }[] =
   { chave: 'agenda_todas', nome: 'Agenda de todas', explica: 'Ver a agenda de todas as profissionais' },
   { chave: 'agenda_editar', nome: 'Mexer na agenda', explica: 'Marcar, remarcar, cancelar e dar baixa' },
   { chave: 'pessoas', nome: 'Leads e Clientes', explica: 'Ver e editar as fichas' },
+  { chave: 'odontograma', nome: 'Odontograma', explica: 'Marcar e alterar o odontograma (ver, vê quem vê a ficha)' },
   { chave: 'crm', nome: 'CRM', explica: 'O funil' },
   { chave: 'dashboard', nome: 'Dashboard', explica: 'Os números da empresa' },
   { chave: 'valores', nome: 'Valores', explica: 'O valor pago de cada pessoa e de cada consulta' },

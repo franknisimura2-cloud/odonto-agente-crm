@@ -44,13 +44,13 @@ export function responder(url, objeto) {
   // MOCK_PAPEL=recepcao|profissional|dona (padrão) escolhe quem está logado.
   if (rpc === 'minhas_permissoes') {
     const papel = process.env.MOCK_PAPEL || 'dona'
-    const todas = ['dashboard', 'valores', 'conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'crm', 'exportar', 'configurar', 'equipe']
-    const liga = { dona: todas, recepcao: ['conversas', 'agenda_todas', 'agenda_editar', 'pessoas'], profissional: [] }[papel]
+    const todas = ['dashboard', 'valores', 'conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'crm', 'exportar', 'configurar', 'equipe', 'odontograma']
+    const liga = { dona: todas, recepcao: ['conversas', 'agenda_todas', 'agenda_editar', 'pessoas'], profissional: ['odontograma'] }[papel]
     return { papel, profissional_id: papel === 'profissional' ? 'pd' : null, permissoes: Object.fromEntries(todas.map((p) => [p, liga.includes(p)])) }
   }
   if (rpc === 'valores_das_consultas') return (process.env.MOCK_PAPEL || 'dona') === 'dona' ? consultas.map((c) => ({ id: c.id, valor_pago: 250 })) : []
   if (rpc === 'equipe') {
-    const todas = ['dashboard', 'valores', 'conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'crm', 'exportar', 'configurar', 'equipe']
+    const todas = ['dashboard', 'valores', 'conversas', 'agenda_todas', 'agenda_editar', 'pessoas', 'crm', 'exportar', 'configurar', 'equipe', 'odontograma']
     const ef = (liga) => Object.fromEntries(todas.map((p) => [p, liga.includes(p)]))
     return [
       { id: '00000000-0000-0000-0000-000000000000', nome: 'Danielle Braga', email: 'dona@clinica.com', papel: 'dona', profissional_id: null, ativo: true, permissoes: {}, efetivas: ef(todas) },
@@ -68,6 +68,13 @@ export function responder(url, objeto) {
   if (url.includes('/rest/v1/profissionais?')) return profissionais
   if (url.includes('/rest/v1/profissional_horarios')) return horarios
   if (url.includes('/rest/v1/profissional_bloqueios')) return []
+  // Odontograma (0040)
+  if (url.includes('/rest/v1/odontogramas?')) return objeto ? { deciduos: false } : [{ deciduos: false }]
+  if (url.includes('/rest/v1/odontograma_registros?')) {
+    const r = (id, dente, faces, condicao, situacao, observacao = null) => ({ id, lead_id: lead, dente, faces, condicao, situacao, observacao, criado_por: 'u', created_at: '2026-09-30T12:00:00Z', atualizado_por: 'u', updated_at: '2026-09-30T12:00:00Z' })
+    return [r('o1', 16, ['M', 'O', 'D'], 'carie', 'a_tratar'), r('o2', 26, ['O'], 'restauracao', 'existente'), r('o3', 36, [], 'ausente', 'existente'),
+      r('o4', 46, [], 'canal', 'a_tratar', 'Dor espontânea'), r('o5', 11, ['V'], 'fratura', 'a_tratar'), r('o6', 21, [], 'coroa', 'tratado'), r('o7', 48, [], 'extracao', 'a_tratar')]
+  }
   // Convênios (0038)
   if (url.includes('/rest/v1/convenios?')) return [
     { id: 'cv1', nome: 'Amil Dental', ativo: true, observacoes: null, created_at: '2026-01-01' },

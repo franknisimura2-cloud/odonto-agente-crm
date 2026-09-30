@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Phone, Clock, Save, Plus, X, CalendarDays, ClipboardList, MessagesSquare } from 'lucide-react'
+import { ArrowLeft, Phone, Clock, Save, Plus, X, CalendarDays, ClipboardList, MessagesSquare, Smile } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { isPaciente } from '../lib/pessoas'
 import { formatarParaExibicao } from '../lib/telefones'
@@ -9,6 +9,7 @@ import { buscarPorWhatsapp, ERRO_DUPLICADO, type PessoaResumo } from '../lib/con
 import { STATUS_CONSULTA, ROTULO_CONSULTA, STATUS_LEAD, ROTULO_LEAD } from '../lib/statusLead'
 import CampoTelefone from '../components/CampoTelefone'
 import ApagarEstaPessoa from '../components/ApagarEstaPessoa'
+import Odontograma from '../components/Odontograma'
 import AvisoForaDaLista from '../components/AvisoForaDaLista'
 import type { LeadClinica, LeadStatus, Consulta, ConsultaStatus, Profissional } from '../types'
 import { MARCA_SUAVE, MARCA, MARCA_CLARO } from '../lib/marca'
@@ -614,6 +615,13 @@ export default function LeadDetail() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Odontograma (0040) — vê quem vê a ficha; marca quem tem a permissão. */}
+      <div className="fade-in-3">
+        <SectionCard title="Odontograma" icon={Smile}>
+          <Odontograma leadId={lead.id} podeEditar={acesso.pode('odontograma')} />
+        </SectionCard>
       </div>
 
       {/* Visão Completa do Contato */}
