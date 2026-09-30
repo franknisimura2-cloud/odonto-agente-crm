@@ -20,6 +20,7 @@ fica o lado de negócio e a ordem das coisas.
 | **Fase 2** — a atendente de cada clínica em `clinicas/<nome>/` | ✔ Pronta |
 | **Níveis de acesso** — dona, recepção, profissional, com permissões por pessoa e a aba Equipe | ✔ No ar (migrações 0031–0035) |
 | **Lembretes de agendamento** com confirmação por SIM e selo "Confirmada" na Agenda | ✔ No ar (migração 0037) — desligados por padrão, cada clínica liga na tela |
+| **CRM Odonto — a roda da clínica odontológica**: convênios (0038–0039), odontograma (0040), plano de tratamento em etapas com link de aprovação (0041), a Letícia retomando planos não aprovados (0042), retorno semestral (0043), valor de tabela (0044) e o painel da roda no Dashboard (0045) | ✔ No ar na Sorriso Pleno (fictícia) — as automações da Letícia nascem desligadas; envio real pelo WhatsApp ainda não testado (uazapi não conectada) |
 | **Fase 3** — `clinica:nova`: criar uma clínica inteira com um comando | ⏭ Próxima |
 | Fases 4 a 7 | Ver seção 4 |
 

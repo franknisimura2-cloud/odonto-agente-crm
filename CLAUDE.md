@@ -41,7 +41,7 @@ Nesse caso:
    pela tela (4), a empresa (5) e revogar o token no fim (6). O resto é seu:
    criar e abrir os três arquivos a partir dos moldes e conferir com
    `npm run instalar:conferir` (2); e a parte 3 inteira — **todas** as
-   migrações de `supabase/migrations/` (hoje, 44), as duas Edge Functions, o
+   migrações de `supabase/migrations/` (hoje, 45), as duas Edge Functions, o
    acesso dela com `npm run instalar:usuario` e o sistema rodando, com o link.
    Não tente fazer a parte dela, e não deixe a sua para ela.
 

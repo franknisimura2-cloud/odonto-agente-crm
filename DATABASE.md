@@ -297,6 +297,11 @@ nesta ordem** — cada um depende do anterior:
     plano nasce, inclusive nos serviços que passam pela avaliação (que não têm
     "a partir de"). Interno: a Letícia não lê.
 
+45. `supabase/migrations/0045_dashboard_roda.sql` — o painel da roda no
+    Dashboard: `dashboard_roda()` (entrada, avaliação, plano, aprovação, a
+    conversão convênio → particular, retorno) e `dashboard_roda_convenios()`.
+    SECURITY INVOKER, como as da 0024; o dinheiro volta nulo sem `valores`.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)

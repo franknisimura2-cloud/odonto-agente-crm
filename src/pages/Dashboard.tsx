@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Users, Calendar, TrendingUp, TriangleAlert,
@@ -10,6 +10,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { formatarParaExibicao } from '../lib/telefones'
 import FiltroPeriodo from '../components/FiltroPeriodo'
+import PainelRoda from '../components/PainelRoda'
 import { COR_SEM_PROFISSIONAL } from '../lib/cores'
 import {
   getPeriodRange,
@@ -349,6 +350,13 @@ export default function Dashboard() {
     return () => { vivo = false }
   }, [])
 
+  // O período da roda (0045), fixado por filtro: `getPeriodRange` usa "agora"
+  // como fim, e recalcular a cada render recarregaria o painel sem parar.
+  const faixaRoda = useMemo(() => {
+    const r = getPeriodRange(periodo, faixa)
+    return { inicio: r.start.toISOString(), fim: r.end.toISOString() }
+  }, [periodo, faixa])
+
   const taxaConversao = numeros.novos_contatos > 0
     ? Math.round((numeros.consultas_agendadas / numeros.novos_contatos) * 100)
     : 0
@@ -436,6 +444,9 @@ export default function Dashboard() {
         <KpiCard icon={Calendar} label="Agendamentos" value={numeros.consultas_agendadas} description="Total de agendamentos marcados no período" delay="4" celular={pequena} />
         <KpiCard icon={TrendingUp} label="Taxa de Conversão" value={taxaConversao} suffix="%" description="Percentual de novos contatos que agendaram" delay="5" celular={pequena} largo />
       </div>
+
+      {/* A roda da clínica odontológica (0045) */}
+      <PainelRoda inicio={faixaRoda.inicio} fim={faixaRoda.fim} pequena={pequena} />
 
       {/* Gráfico 1: linha */}
       <div className="fade-in-4 cartao" style={{ ...CARTAO, marginBottom: pequena ? 16 : 24 }}
