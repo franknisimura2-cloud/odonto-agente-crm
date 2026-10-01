@@ -133,6 +133,7 @@ function Erro({ texto }: { texto: string }) {
 // Também leva os três campos da retomada de planos (0042): são salvos pelo
 // mesmo botão, e a comparação de "o que mudou" é uma só.
 type Lembretes = Pick<ConfiguracoesAgente,
+  'passagem_avisar' |
   'followup_ativo' | 'followup_1_ativo' | 'followup_1_minutos' | 'followup_2_ativo' | 'followup_2_horas' |
   'followup_3_ativo' | 'followup_3_dias' | 'followup_inicio' | 'followup_fim' |
   'retornos_ativo' | 'retornos_antecedencia' | 'retornos_intervalo_dias' | 'retornos_toques' |
@@ -141,6 +142,7 @@ type Lembretes = Pick<ConfiguracoesAgente,
   'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao'>
 
 const LEMBRETES_PADRAO: Lembretes = {
+  passagem_avisar: [],
   followup_ativo: false,
   followup_1_ativo: true,
   followup_1_minutos: 10,
@@ -167,6 +169,7 @@ const LEMBRETES_PADRAO: Lembretes = {
 
 function lembretesDe(c: ConfiguracoesAgente): Lembretes {
   return {
+    passagem_avisar: c.passagem_avisar ?? [],
     followup_ativo: c.followup_ativo ?? false,
     followup_1_ativo: c.followup_1_ativo ?? true,
     followup_1_minutos: c.followup_1_minutos ?? 10,
@@ -238,6 +241,8 @@ export default function SecretariaIA() {
 
   const [novoNumero, setNovoNumero] = useState('')
   const [novoValido, setNovoValido] = useState(false)
+  const [novoAviso, setNovoAviso] = useState('')
+  const [novoAvisoValido, setNovoAvisoValido] = useState(false)
   const [buscandoOficial, setBuscandoOficial] = useState(false)
   // O prompt é longo e quase nunca é o que a pessoa veio ver. Nasce fechado, e
   // o oficial só é buscado quando ela abre — não em todo carregamento da página.
@@ -803,6 +808,71 @@ export default function SecretariaIA() {
             desligue quando o prompt já tiver sido testado de verdade.
           </Aviso>
         )}
+      </div>
+
+      {/* ---------------- Passagem para a equipe (0047) ----------------
+
+          A passagem em si não se liga nem desliga: a ferramenta está sempre lá,
+          e a conversa sempre aparece em "Esperando a equipe". Aqui se escolhe
+          só quem é avisado no WhatsApp. */}
+      <div className="cartao" style={cartao}>
+        <div style={titulo}>Passagem para a equipe</div>
+        <p style={{ ...legenda, marginBottom: 14 }}>
+          Quando a {nomeAgente} precisa de uma pessoa (urgência, reclamação, pedido para falar com
+          alguém, ou algo que ela não sabe responder), ela para de responder naquela conversa, e a
+          conversa aparece em <strong>Conversas → Esperando a equipe</strong>, com o motivo.
+        </p>
+
+        <div style={subtitulo}>Avisar também no WhatsApp</div>
+        <p style={{ ...legenda, marginBottom: 10 }}>
+          Estes números recebem uma mensagem a cada passagem, enviada pelo WhatsApp da empresa.
+          Deixe vazio para avisar só na tela.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          {lemb.passagem_avisar.length === 0 && (
+            <div style={{ fontSize: 12.5, color: '#6B818C', fontStyle: 'italic' }}>Ninguém é avisado no WhatsApp — só na tela.</div>
+          )}
+          {lemb.passagem_avisar.map((n) => (
+            <div key={n} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '9px 14px', background: '#F7FAFB', border: '1px solid #DCE6EA', borderRadius: 9,
+            }}>
+              <span style={{ fontFamily: MONO, fontSize: 13, color: '#16232B' }}>{formatarParaExibicao(n)}</span>
+              <button onClick={() => setLemb({ ...lemb, passagem_avisar: lemb.passagem_avisar.filter((x) => x !== n) })}
+                title="Remover"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', display: 'flex', padding: 4 }}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <CampoTelefone
+              valor={novoAviso}
+              onChange={(canonico, valido) => { setNovoAviso(canonico); setNovoAvisoValido(valido) }}
+              rotulo="Adicionar número para aviso"
+              marcador={false}
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (!novoAvisoValido || lemb.passagem_avisar.includes(novoAviso)) return
+              setLemb({ ...lemb, passagem_avisar: [...lemb.passagem_avisar, novoAviso] })
+              setNovoAviso(''); setNovoAvisoValido(false)
+            }}
+            disabled={!novoAvisoValido}
+            style={{ ...botao(novoAvisoValido ? MARCA : '#B8CBD3'), cursor: novoAvisoValido ? 'pointer' : 'not-allowed' }}>
+            <Plus size={14} /> Adicionar
+          </button>
+        </div>
+
+        <p style={{ ...legenda, marginTop: 12 }}>
+          Use números da equipe que não conversam com a empresa como clientes: se alguém responder ao
+          aviso, a resposta chega como uma conversa normal.
+        </p>
       </div>
 
       {/* ---------------- Follow-up (0046) ----------------

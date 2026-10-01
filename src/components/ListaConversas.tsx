@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, UserCheck, MessageSquareDashed, CalendarCheck, CalendarX } from 'lucide-react'
+import { Search, UserCheck, MessageSquareDashed, CalendarCheck, CalendarX, BellRing } from 'lucide-react'
 import { formatarParaExibicao } from '../lib/telefones'
 import { previaDaMensagem, quandoCurto, temConsultaMarcada, quandoAgendada } from '../lib/conversas'
 import { AGENTE_TITULO, useAgente } from '../lib/agente'
@@ -23,12 +23,19 @@ const FONTE = "'Plus Jakarta Sans', sans-serif"
  * — isso é o CRM. Aqui a pergunta é **"de quem eu preciso cuidar agora?"**:
  * quem esperou resposta (não lidas) e quem já converteu (agendadas).
  */
-type Filtro = 'todas' | 'agendadas' | 'nao_lidas'
+type Filtro = 'todas' | 'esperando' | 'agendadas' | 'nao_lidas'
 
 const ROTULO_FILTRO: Record<Filtro, string> = {
   todas: 'Todas',
+  // A atendente passou para a equipe e ninguém assumiu ainda (0047).
+  esperando: 'Esperando a equipe',
   agendadas: 'Agendadas',
   nao_lidas: 'Não lidas',
+}
+
+/** A atendente passou para a equipe e ninguém assumiu ainda. */
+function esperandoEquipe(c: ConversaResumo): boolean {
+  return !!c.passagem_em && !c.assumido_por
 }
 
 interface Props {
@@ -51,6 +58,7 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
 
   const passaNoFiltro = (c: ConversaResumo) =>
     filtro === 'todas' ? true
+      : filtro === 'esperando' ? esperandoEquipe(c)
       : filtro === 'agendadas' ? temConsultaMarcada(c)
       : c.nao_lidas > 0
 
@@ -67,12 +75,15 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
   // dizem quanto existe, e um contador que muda ao digitar não serve para isso.
   const totais: Record<Filtro, number> = {
     todas: conversas.length,
+    esperando: conversas.filter(esperandoEquipe).length,
     agendadas: conversas.filter(temConsultaMarcada).length,
     nao_lidas: conversas.filter((c) => c.nao_lidas > 0).length,
   }
 
   const vazioTexto = termo
     ? 'Tente outro nome ou número.'
+    : filtro === 'esperando'
+      ? `Ninguém esperando. Quando a ${nomeAgente} passar uma conversa para a equipe, ela aparece aqui com o motivo.`
     : filtro === 'agendadas'
       ? `Ninguém com agendamento marcado por aqui ainda. Quando a ${nomeAgente} marcar, a etiqueta verde aparece na conversa.`
       : filtro === 'nao_lidas'
@@ -242,7 +253,7 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
                 </div>
 
                 {/* As etiquetas. Numa linha só, que quebra se precisar. */}
-                {(agendada || cancelada || c.agente_pausado) && (
+                {(agendada || cancelada || c.agente_pausado || esperandoEquipe(c)) && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
 
                     {agendada && (
@@ -267,7 +278,19 @@ export default function ListaConversas({ conversas, selecionada, onSelecionar, c
                       </span>
                     )}
 
-                    {c.agente_pausado && (
+                    {esperandoEquipe(c) && (
+                      <span title={c.passagem_motivo ?? undefined} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4, maxWidth: '100%',
+                        background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6,
+                        padding: '2px 6px', fontSize: 10, fontWeight: 700, color: '#B42318',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        <BellRing size={10} />
+                        Esperando a equipe{c.passagem_motivo ? ` · ${c.passagem_motivo}` : ''}
+                      </span>
+                    )}
+
+                    {c.agente_pausado && !esperandoEquipe(c) && (
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 6,

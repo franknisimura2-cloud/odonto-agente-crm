@@ -20,6 +20,7 @@
  */
 
 import { rpc, selecionar, atualizar } from './db.ts'
+import { ponteAtiva } from './pontes.ts'
 import { paraInstante } from './tempo.ts'
 import type { DefinicaoFerramenta } from './llm.ts'
 
@@ -301,6 +302,30 @@ export const FERRAMENTAS: DefinicaoFerramenta[] = [
           description: 'O número da carteirinha do convênio, se a pessoa informar.',
         },
       },
+      additionalProperties: false,
+    },
+  },
+  {
+    nome: 'passar_para_pessoa',
+    descricao:
+      'Passa a conversa para a equipe: avisa quem precisa saber e PAUSA você ' +
+      'nesta conversa. Use nos casos de "Quando passar para uma pessoa". Depois ' +
+      'dela, escreva a frase de passagem e não continue o atendimento.',
+    parametros: {
+      type: 'object',
+      properties: {
+        motivo: {
+          type: 'string',
+          description:
+            'Uma frase que a equipe entenda sem abrir a conversa: "quer renegociar ' +
+            'a parcela do tratamento", "dor forte no dente desde ontem".',
+        },
+        urgente: {
+          type: 'boolean',
+          description: 'Só para dor forte, sangramento, inchaço, trauma ou reação depois de procedimento.',
+        },
+      },
+      required: ['motivo'],
       additionalProperties: false,
     },
   },
@@ -844,6 +869,46 @@ export async function executar(
         // `minutos_ultima_mensagem`, que é calculada na leitura.
         await atualizar('crm_clinica', `id=eq.${ctx.leadId}`, campos)
         return { ok: true }
+      }
+
+      case 'passar_para_pessoa': {
+        // A PASSAGEM É UM ATO (0047). Antes era só a frase "já te respondem",
+        // e ninguém ficava sabendo. Agora pausa a atendente nesta conversa e
+        // marca quando e por quê — a tela Conversas mostra em "Esperando a
+        // equipe", e a marca some sozinha quando alguém assume ou devolve.
+        const motivo = String(args.motivo ?? '').trim().slice(0, 300) || 'Pediu para falar com uma pessoa'
+        const urgente = args.urgente === true
+        await atualizar('crm_clinica_dados', `id=eq.${ctx.leadId}`, {
+          agente_pausado: true,
+          passagem_em: new Date().toISOString(),
+          passagem_motivo: (urgente ? 'URGENTE — ' : '') + motivo,
+        })
+
+        // O aviso no WhatsApp da equipe é extra: se falhar, a passagem vale.
+        try {
+          const [cfg, lead] = await Promise.all([
+            selecionar<{ passagem_avisar: string[] | null }>('configuracoes_agente?select=passagem_avisar&limit=1'),
+            selecionar<{ nome_lead: string | null }>(`crm_clinica_dados?select=nome_lead&id=eq.${ctx.leadId}&limit=1`),
+          ])
+          const numeros = (cfg[0]?.passagem_avisar ?? []).filter((n) => n && n !== ctx.whatsapp)
+          if (numeros.length) {
+            const ponte = await ponteAtiva()
+            const quem = lead[0]?.nome_lead?.trim() || `+${ctx.whatsapp}`
+            const aviso = `${urgente ? '🚨 URGENTE' : '🔔'} ${quem} precisa de atendimento: ${motivo}. ` +
+              'Abra Conversas no CRM e assuma a conversa.'
+            for (const n of numeros) await ponte.enviarTexto(n, aviso).catch(() => null)
+          }
+        } catch (e) {
+          console.error('aviso da passagem:', e)
+        }
+
+        return {
+          ok: true,
+          mensagem:
+            'A conversa foi passada para a equipe e você está pausada nela. Escreva agora ' +
+            'a frase de passagem — um colega responde por aqui; fora do horário de ' +
+            'atendimento, diga quando a equipe volta — e não continue o atendimento.',
+        }
       }
 
       case 'nao_perturbe': {

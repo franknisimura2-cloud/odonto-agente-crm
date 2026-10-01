@@ -458,6 +458,8 @@ export interface ConfiguracoesAgente {
   /** A janela das mensagens automáticas, 'HH:MM:SS' no fuso da empresa. */
   followup_inicio: string
   followup_fim: string
+  /** Números da equipe avisados no WhatsApp a cada passagem (0047). */
+  passagem_avisar: string[]
   /** Retomar o plano de tratamento não aprovado (0042). Nasce FALSE. */
   planos_retomar_ativo: boolean
   /** 1 a 30 dias de silêncio antes de cada toque. */
@@ -500,6 +502,9 @@ export interface ConversaResumo {
   ultima_em: string
   /** Só conta mensagem do paciente. É a bolinha azul da lista. */
   nao_lidas: number
+  /** A atendente passou a conversa para a equipe (0047). Nulo = ninguém esperando. */
+  passagem_em: string | null
+  passagem_motivo: string | null
   /**
    * A consulta ativa mais próxima do lead. Nula = sem consulta marcada.
    *

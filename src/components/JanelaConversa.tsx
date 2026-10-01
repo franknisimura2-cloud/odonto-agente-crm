@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Send, UserCheck, Undo2, Bot, ExternalLink, MessagesSquare, FileText,
-  PanelRightOpen, PanelRightClose, ChevronLeft, UserRound,
-} from 'lucide-react'
+  PanelRightOpen, PanelRightClose, ChevronLeft, UserRound, BellRing } from 'lucide-react'
 import { formatarParaExibicao } from '../lib/telefones'
 import { urlDaMidia, hora, diaPorExtenso, nomeDoAutor } from '../lib/conversas'
 import { useAgente } from '../lib/agente'
@@ -208,7 +207,10 @@ export default function JanelaConversa({
   }
 
   const nome = conversa.nome_lead?.trim() || formatarParaExibicao(conversa.whatsapp_lead) || 'Sem nome'
-  const assumida = conversa.agente_pausado
+  // Passada para a equipe e ninguém assumiu (0047): pausada, mas ninguém
+  // está atendendo — o aviso e o botão são de "assumir", não de "devolver".
+  const esperando = !!conversa.passagem_em && !conversa.assumido_por
+  const assumida = conversa.agente_pausado && !esperando
 
   function enviar() {
     const limpo = texto.trim()
@@ -312,12 +314,18 @@ export default function JanelaConversa({
       {/* Quem está atendendo */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 7, padding: celular ? '7px 14px' : '7px 20px',
-        background: assumida ? '#FFFBEB' : '#F7FAFB',
-        borderBottom: `1px solid ${assumida ? '#FDE68A' : '#EDF2F4'}`,
-        fontSize: 11.5, color: assumida ? '#92400E' : '#6B818C', flexShrink: 0,
+        background: esperando ? '#FEF2F2' : assumida ? '#FFFBEB' : '#F7FAFB',
+        borderBottom: `1px solid ${esperando ? '#FECACA' : assumida ? '#FDE68A' : '#EDF2F4'}`,
+        fontSize: 11.5, color: esperando ? '#B42318' : assumida ? '#92400E' : '#6B818C', flexShrink: 0,
       }}>
-        {assumida ? <UserCheck size={12} /> : <Bot size={12} />}
-        {assumida
+        {esperando ? <BellRing size={12} /> : assumida ? <UserCheck size={12} /> : <Bot size={12} />}
+        {esperando
+          ? <span>
+              <strong>Esperando a equipe</strong>
+              {conversa.passagem_em && ` desde ${new Date(conversa.passagem_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+              {conversa.passagem_motivo && <> — {conversa.passagem_motivo}</>}. A {nomeAgente} parou de responder aqui: assuma para atender.
+            </span>
+          : assumida
           ? <span>
               <strong>Você está atendendo.</strong> A {nomeAgente} não responde nesta
               conversa{conversa.assumido_por_nome ? ` — assumida por ${conversa.assumido_por_nome}` : ''}.

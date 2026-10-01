@@ -310,6 +310,13 @@ nesta ordem** — cada um depende do anterior:
     (o prazo da próxima ligada) e a coluna `ultima`. O card anda até a coluna
     "Follow-up 3" do Kanban.
 
+47. `supabase/migrations/0047_passagem_para_pessoa.sql` — a passagem para uma
+    pessoa vira um ato: `passagem_em` e `passagem_motivo` na pessoa (gravados
+    pela ferramenta `passar_para_pessoa`, que também pausa a atendente), o
+    gatilho `leads_limpa_passagem` (apaga a marca quando alguém assume ou
+    devolve), `configuracoes_agente.passagem_avisar` (números avisados no
+    WhatsApp) e as duas colunas em `conversas_lista` e `crm_clinica`.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)
