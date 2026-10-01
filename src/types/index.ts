@@ -444,6 +444,20 @@ export interface ConfiguracoesAgente {
   lembrete_antes_minutos: number
   /** A véspera pede "responda SIM"; o SIM vira o selo "Confirmada" na Agenda. */
   lembrete_pedir_confirmacao: boolean
+  /** Follow-up (0030 e 0046): a chave geral nasce desligada e liga na tela. */
+  followup_ativo: boolean
+  followup_1_ativo: boolean
+  /** Etapa 1: minutos de silêncio (a qualquer hora). */
+  followup_1_minutos: number
+  followup_2_ativo: boolean
+  /** Etapa 2: horas de silêncio (só na janela). */
+  followup_2_horas: number
+  followup_3_ativo: boolean
+  /** Etapa 3: dias de silêncio (só na janela). */
+  followup_3_dias: number
+  /** A janela das mensagens automáticas, 'HH:MM:SS' no fuso da empresa. */
+  followup_inicio: string
+  followup_fim: string
   /** Retomar o plano de tratamento não aprovado (0042). Nasce FALSE. */
   planos_retomar_ativo: boolean
   /** 1 a 30 dias de silêncio antes de cada toque. */

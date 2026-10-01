@@ -450,6 +450,8 @@ interface Pendente {
   nome: string | null
   etapa: number
   minutos_calado: number
+  /** A última etapa ligada (0046): a mensagem deixa a porta aberta, sem insistir. */
+  ultima: boolean
 }
 
 async function rotaFollowUp(req: Request): Promise<Response> {
@@ -514,7 +516,7 @@ function silencio(minutos: number): string {
  * texto só existe em uma das duas situações em que ela fala. Prompt que
  * descreve uma situação que não está acontecendo é ruído em toda mensagem.
  */
-function instrucaoDeFollowUp(etapa: number, minutos: number, oQueAconteceu: string[]): string {
+function instrucaoDeFollowUp(etapa: number, minutos: number, oQueAconteceu: string[], ultima = etapa >= 2): string {
   const comum = [
     '',
     '',
@@ -541,18 +543,29 @@ function instrucaoDeFollowUp(etapa: number, minutos: number, oQueAconteceu: stri
     'escreva duas mensagens: uma só.',
   ]
 
-  const fecho = etapa === 1
+  // Três etapas (0046): o momento muda o tom, e a ÚLTIMA etapa ligada —
+  // seja ela qual for — é a que deixa a porta aberta.
+  const momento = etapa === 1
     ? [
         '',
         'É o primeiro toque, poucos minutos depois. O tom é o de quem continua na',
         'mesma conversa, não o de quem volta depois de um tempo.',
       ]
+    : etapa === 2
+      ? ['', 'Já passou pelo menos um dia. O tom é o de quem retoma com leveza, sem cobrar a resposta.']
+      : ['', 'Já se passaram alguns dias. O tom é o de quem se lembrou dela, não o de quem estava esperando.']
+  const fecho = [...momento, ...(ultima
+    ? [
+        '',
+        'Esta é a ÚLTIMA vez que você escreve por conta própria: se ela não',
+        'responder, ninguém volta a procurá-la. Deixe a porta aberta sem despedida',
+        'dramática, e sem dizer que é a última tentativa.',
+      ]
     : [
         '',
-        'Já passou um dia, e esta é a ÚLTIMA vez que você escreve por conta',
-        'própria: se ela não responder, ninguém volta a procurá-la. Deixe a porta',
-        'aberta sem despedida dramática, e sem dizer que é a última tentativa.',
-      ]
+        'Ainda haverá outra tentativa mais adiante: não trate esta mensagem como',
+        'despedida.',
+      ])]
 
   return [...comum, ...oQueAconteceu, ...fecho].join('\n')
 }
@@ -647,6 +660,7 @@ async function mandarFollowUp(pendente: Pendente, reservaId: string): Promise<vo
       pendente.etapa,
       pendente.minutos_calado,
       await oQueAconteceuComOAgendamento(lead.id, fuso),
+      pendente.ultima ?? pendente.etapa >= 2,
     )
 
   // SEM FERRAMENTA NENHUMA, de propósito. Um follow-up não marca, não cancela e
@@ -701,7 +715,9 @@ async function mandarFollowUp(pendente: Pendente, reservaId: string): Promise<vo
   // conversa e em `agente_followups`.
   const deOnde = pendente.etapa === 1
     ? 'iniciou_conversa,conversando,consulta_cancelada'
-    : 'iniciou_conversa,conversando,consulta_cancelada,follow_up_1_feito'
+    : pendente.etapa === 2
+      ? 'iniciou_conversa,conversando,consulta_cancelada,follow_up_1_feito'
+      : 'iniciou_conversa,conversando,consulta_cancelada,follow_up_1_feito,follow_up_2_feito'
 
   try {
     await atualizar(

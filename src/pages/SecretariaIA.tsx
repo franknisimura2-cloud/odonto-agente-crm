@@ -133,12 +133,23 @@ function Erro({ texto }: { texto: string }) {
 // Também leva os três campos da retomada de planos (0042): são salvos pelo
 // mesmo botão, e a comparação de "o que mudou" é uma só.
 type Lembretes = Pick<ConfiguracoesAgente,
+  'followup_ativo' | 'followup_1_ativo' | 'followup_1_minutos' | 'followup_2_ativo' | 'followup_2_horas' |
+  'followup_3_ativo' | 'followup_3_dias' | 'followup_inicio' | 'followup_fim' |
   'retornos_ativo' | 'retornos_antecedencia' | 'retornos_intervalo_dias' | 'retornos_toques' |
   'planos_retomar_ativo' | 'planos_retomar_dias' | 'planos_retomar_toques' |
   'lembretes_ativo' | 'lembrete_vespera_ativo' | 'lembrete_vespera_horas' |
   'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao'>
 
 const LEMBRETES_PADRAO: Lembretes = {
+  followup_ativo: false,
+  followup_1_ativo: true,
+  followup_1_minutos: 10,
+  followup_2_ativo: true,
+  followup_2_horas: 24,
+  followup_3_ativo: false,
+  followup_3_dias: 3,
+  followup_inicio: '09:00:00',
+  followup_fim: '20:30:00',
   retornos_ativo: false,
   retornos_antecedencia: 7,
   retornos_intervalo_dias: 7,
@@ -156,6 +167,15 @@ const LEMBRETES_PADRAO: Lembretes = {
 
 function lembretesDe(c: ConfiguracoesAgente): Lembretes {
   return {
+    followup_ativo: c.followup_ativo ?? false,
+    followup_1_ativo: c.followup_1_ativo ?? true,
+    followup_1_minutos: c.followup_1_minutos ?? 10,
+    followup_2_ativo: c.followup_2_ativo ?? true,
+    followup_2_horas: c.followup_2_horas ?? 24,
+    followup_3_ativo: c.followup_3_ativo ?? false,
+    followup_3_dias: c.followup_3_dias ?? 3,
+    followup_inicio: c.followup_inicio ?? '09:00:00',
+    followup_fim: c.followup_fim ?? '20:30:00',
     retornos_ativo: c.retornos_ativo ?? false,
     retornos_antecedencia: c.retornos_antecedencia ?? 7,
     retornos_intervalo_dias: c.retornos_intervalo_dias ?? 7,
@@ -182,6 +202,15 @@ function rotuloMinutos(m: number): string {
 const seletorLembrete: React.CSSProperties = {
   padding: '6px 10px', borderRadius: 8, border: '1px solid #DCE6EA',
   fontSize: 13, fontFamily: FONTE, color: '#16232B', background: '#fff',
+}
+
+/** Os horários da janela, de meia em meia hora — mais o que já estiver gravado. */
+function HORAS_JANELA(atual: string): string[] {
+  const hs: string[] = []
+  for (let m = 6 * 60; m <= 23 * 60; m += 30) hs.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`)
+  const a = (atual ?? '').slice(0, 5)
+  if (a && !hs.includes(a)) hs.push(a)
+  return hs.sort()
 }
 
 export default function SecretariaIA() {
@@ -255,6 +284,15 @@ export default function SecretariaIA() {
 
   async function salvar() {
     if (!cfg) return
+    // O banco recusa prazos fora de ordem (0046); aqui a recusa vem explicada.
+    if (lemb.followup_1_minutos >= lemb.followup_2_horas * 60 || lemb.followup_2_horas >= lemb.followup_3_dias * 24) {
+      setErro('Os prazos do follow-up precisam crescer: o 1 antes do 2, e o 2 antes do 3.')
+      return
+    }
+    if (lemb.followup_inicio >= lemb.followup_fim) {
+      setErro('O horário das mensagens precisa começar antes de terminar.')
+      return
+    }
     setSalvando(true)
     setErro('')
     const { data, error } = await supabase.from('configuracoes_agente')
@@ -387,7 +425,7 @@ export default function SecretariaIA() {
     if (numeros.join(',') !== (cfg.numeros_teste ?? []).join(',')) {
       alteracoes.push('os números de teste')
     }
-    if (JSON.stringify(lemb) !== JSON.stringify(lembretesDe(cfg))) alteracoes.push('os lembretes')
+    if (JSON.stringify(lemb) !== JSON.stringify(lembretesDe(cfg))) alteracoes.push('as mensagens automáticas')
   }
   const alterado = alteracoes.length > 0
 
@@ -765,6 +803,79 @@ export default function SecretariaIA() {
             desligue quando o prompt já tiver sido testado de verdade.
           </Aviso>
         )}
+      </div>
+
+      {/* ---------------- Follow-up (0046) ----------------
+
+          As três etapas são as três colunas "Follow-up" do Kanban: a etapa
+          enviada move o card para a coluna dela. Quem decide quem recebe é a
+          `followups_pendentes()`; aqui só se liga e se escolhe os prazos. */}
+      <div className="cartao" style={cartao}>
+        <div style={titulo}>Follow-up: retomar conversas paradas</div>
+        <p style={{ ...legenda, marginBottom: 16 }}>
+          Quando a pessoa para de responder, a {nomeAgente} volta a falar — retomando o assunto
+          dela, sem pressionar. Cada etapa enviada move o card para a coluna Follow-up
+          correspondente no CRM.
+        </p>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
+          <input type="checkbox" checked={lemb.followup_ativo}
+            onChange={(e) => setLemb({ ...lemb, followup_ativo: e.target.checked })}
+            style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#16232B' }}>Fazer follow-up</span>
+        </label>
+
+        <fieldset disabled={!lemb.followup_ativo} style={{
+          border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12,
+          opacity: lemb.followup_ativo ? 1 : 0.55,
+        }}>
+          {([
+            { n: 1, ativo: 'followup_1_ativo', valor: 'followup_1_minutos', opcoes: [5, 10, 15, 30, 60, 120], rotulo: (v: number) => v < 60 ? `${v} minutos` : v === 60 ? '1 hora' : `${v / 60} horas`, dica: 'a qualquer hora' },
+            { n: 2, ativo: 'followup_2_ativo', valor: 'followup_2_horas', opcoes: [4, 8, 12, 24, 48], rotulo: (v: number) => v === 24 ? '1 dia' : v === 48 ? '2 dias' : `${v} horas`, dica: 'no horário abaixo' },
+            { n: 3, ativo: 'followup_3_ativo', valor: 'followup_3_dias', opcoes: [2, 3, 5, 7, 15], rotulo: (v: number) => `${v} dias`, dica: 'no horário abaixo' },
+          ] as const).map((et) => {
+            const ligada = lemb[et.ativo] as boolean
+            const valor = lemb[et.valor] as number
+            return (
+              <div key={et.n} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', minWidth: 118 }}>
+                  <input type="checkbox" checked={ligada}
+                    onChange={(e) => setLemb({ ...lemb, [et.ativo]: e.target.checked })}
+                    style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: '#16232B' }}>Follow-up {et.n}</span>
+                </label>
+                <select value={valor} disabled={!ligada}
+                  onChange={(e) => setLemb({ ...lemb, [et.valor]: Number(e.target.value) })} style={seletorLembrete}>
+                  {[...new Set([...et.opcoes, valor])].sort((a, b) => a - b).map((v) => (
+                    <option key={v} value={v}>{et.rotulo(v)}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 13, color: '#6B818C' }}>sem resposta, {et.dica}</span>
+              </div>
+            )
+          })}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>Horário das mensagens: das</span>
+            <select value={lemb.followup_inicio.slice(0, 5)}
+              onChange={(e) => setLemb({ ...lemb, followup_inicio: e.target.value + ':00' })} style={seletorLembrete}>
+              {HORAS_JANELA(lemb.followup_inicio).map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+            <span style={{ fontSize: 13.5, color: '#16232B' }}>às</span>
+            <select value={lemb.followup_fim.slice(0, 5)}
+              onChange={(e) => setLemb({ ...lemb, followup_fim: e.target.value + ':00' })} style={seletorLembrete}>
+              {HORAS_JANELA(lemb.followup_fim).map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+        </fieldset>
+
+        <p style={{ ...legenda, marginTop: 14 }}>
+          A última etapa ligada é a última tentativa: ela deixa a porta aberta, sem insistir.
+          Não recebe follow-up quem já é cliente, quem tem horário marcado, quem pediu para não ser
+          procurado, nem conversa assumida pela equipe. O mesmo horário vale para as outras mensagens
+          automáticas da {nomeAgente}.
+          {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
+        </p>
       </div>
 
       {/* ---------------- Lembretes de agendamento ----------------

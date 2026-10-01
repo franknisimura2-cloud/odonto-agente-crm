@@ -302,6 +302,14 @@ nesta ordem** — cada um depende do anterior:
     conversão convênio → particular, retorno) e `dashboard_roda_convenios()`.
     SECURITY INVOKER, como as da 0024; o dinheiro volta nulo sem `valores`.
 
+46. `supabase/migrations/0046_follow_up_tres_etapas.sql` — follow-up em três
+    etapas (minutos, horas e dias), cada uma liga sozinha, configurado na tela
+    Atendente de IA: `followup_1_ativo`, `followup_2_ativo`, `followup_3_ativo`,
+    `followup_3_dias`; a chave geral `followup_ativo` passa a nascer
+    desligada; `followups_pendentes()` ganha a etapa 3, o teto de cada etapa
+    (o prazo da próxima ligada) e a coluna `ultima`. O card anda até a coluna
+    "Follow-up 3" do Kanban.
+
 A ordem importa: cada arquivo depende do anterior. Rodar fora de ordem falha.
 
 **Aplicar:** `node scripts/aplicar-migracoes.mjs` (ou `--clinica <nome>`)

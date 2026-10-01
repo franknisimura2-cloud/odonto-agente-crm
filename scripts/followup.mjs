@@ -149,9 +149,8 @@ async function ligar() {
 
   await estado()
 
-  console.log('  O follow-up está no ar. Ele só fala com quem passa por todas as')
-  console.log('  travas da followups_pendentes() — e, com o modo teste ligado, só')
-  console.log('  com os números cadastrados na tela Atendente de IA.\n')
+  console.log('  O relógio está no ar. Quem liga o follow-up e escolhe as etapas é a')
+  console.log('  tela Atendente de IA (cartão "Follow-up") — desligado lá, nada sai.\n')
 }
 
 // ===========================================================================
@@ -177,7 +176,8 @@ async function desligar() {
 async function estado() {
   const [config] = await sql(`
     select ativo, followup_ativo, modo_teste,
-           followup_1_minutos, followup_2_horas,
+           followup_1_ativo, followup_1_minutos, followup_2_ativo, followup_2_horas,
+           followup_3_ativo, followup_3_dias,
            to_char(followup_inicio, 'HH24:MI') as inicio,
            to_char(followup_fim,    'HH24:MI') as fim
     from public.configuracoes_agente limit 1
@@ -212,11 +212,12 @@ async function estado() {
   console.log(`  Cron          ${job ? `${job.schedule}${job.active ? '' : ' (PAUSADO)'}` : 'não agendado — rode npm run followup:ligar'}`)
   console.log(`  Batidas 1h    ${batidas.length ? batidas.map((b) => `${b.quantas} ${b.status}`).join(', ') : 'nenhuma ainda'}`)
   console.log(`  Agente        ${config?.ativo ? 'ligado' : 'DESLIGADO — nada é enviado'}${config?.modo_teste ? ', em modo teste' : ''}`)
-  console.log(`  Follow-up     ${config?.followup_ativo ? 'ligado' : 'DESLIGADO na configuracoes_agente'}`)
-  console.log(`  Etapa 1       ${config?.followup_1_minutos} minutos de silêncio, a qualquer hora`)
-  console.log(`  Etapa 2       ${config?.followup_2_horas} horas de silêncio, das ${config?.inicio} às ${config?.fim}`)
-  console.log(`  Fila agora    ${conta(fila, 1)} na etapa 1, ${conta(fila, 2)} na etapa 2`)
-  console.log(`  Últimos 7d    ${conta(enviados, 1)} enviados na etapa 1, ${conta(enviados, 2)} na etapa 2`)
+  console.log(`  Follow-up     ${config?.followup_ativo ? 'ligado' : 'DESLIGADO — ligue na tela Atendente de IA'}`)
+  console.log(`  Etapa 1       ${config?.followup_1_ativo ? `${config.followup_1_minutos} minutos de silêncio, a qualquer hora` : 'desligada'}`)
+  console.log(`  Etapa 2       ${config?.followup_2_ativo ? `${config.followup_2_horas} horas de silêncio, das ${config.inicio} às ${config.fim}` : 'desligada'}`)
+  console.log(`  Etapa 3       ${config?.followup_3_ativo ? `${config.followup_3_dias} dias de silêncio, das ${config.inicio} às ${config.fim}` : 'desligada'}`)
+  console.log(`  Fila agora    ${conta(fila, 1)} / ${conta(fila, 2)} / ${conta(fila, 3)} (etapas 1 / 2 / 3)`)
+  console.log(`  Últimos 7d    ${conta(enviados, 1)} / ${conta(enviados, 2)} / ${conta(enviados, 3)} enviados (etapas 1 / 2 / 3)`)
   console.log('')
 }
 
