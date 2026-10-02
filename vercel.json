@@ -6,6 +6,17 @@
       "has": [
         {
           "type": "host",
+          "value": "odonto.dbxodonto.online"
+        }
+      ],
+      "destination": "/crm-odonto/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
           "value": "apresentacao.dbxodonto.online"
         }
       ],
