@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>body{margin:0}</style>
+<title>CRM Odonto para clínicas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: proposta comercial em coluna de leitura, com blocos largos para benefícios, comparação e a jornada da cliente. */
+:root {
+  --bg: #F2F6F8;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F4;
+  --ink: #13232B;
+  --ink-2: #45606B;
+  --ink-3: #708A94;
+  --line: #D6E3E8;
+  --accent: #1E6E8C;
+  --accent-soft: #E2EFF4;
+  --rose: #A9640F;
+  --rose-soft: #FBF0DF;
+  --ok: #1E7A4D;
+  --ok-soft: #E3F3EA;
+  --no: #A8322A;
+  --no-soft: #FBE9E7;
+  --display: 'Archivo', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F181C; --surface: #152329; --surface-2: #1B2C33; --ink: #E6EFF2; --ink-2: #A9BFC7; --ink-3: #7F98A1;
+    --line: #284049; --accent: #6FBBD8; --accent-soft: #1B3540; --rose: #E9A653; --rose-soft: #3A2A14;
+    --ok: #63C792; --ok-soft: #173326; --no: #F08A80; --no-soft: #3A1C1A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F181C; --surface: #152329; --surface-2: #1B2C33; --ink: #E6EFF2; --ink-2: #A9BFC7; --ink-3: #7F98A1;
+  --line: #284049; --accent: #6FBBD8; --accent-soft: #1B3540; --rose: #E9A653; --rose-soft: #3A2A14;
+  --ok: #63C792; --ok-soft: #173326; --no: #F08A80; --no-soft: #3A1C1A; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.6; }
+.doc { max-width: 1040px; margin: 0 auto; padding-inline: 16px; padding-block: 40px 72px; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; color: var(--ink); }
+h1 { font-size: clamp(34px, 6vw, 54px); font-weight: 800; line-height: 1.05; letter-spacing: -0.01em; }
+h2 { font-size: clamp(24px, 3.4vw, 32px); font-weight: 800; line-height: 1.15; }
+h3 { font-size: 19px; font-weight: 700; line-height: 1.3; }
+p { margin: 0; }
+.rotulo { font-family: var(--display); font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.secao { display: flex; flex-direction: column; gap: 18px; }
+.secao > p { color: var(--ink-2); max-width: 70ch; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.capa { display: flex; flex-direction: column; gap: 18px; padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+.capa .sub { font-size: 20px; color: var(--ink-2); max-width: 62ch; }
+.destaques { display: flex; gap: 10px; flex-wrap: wrap; }
+.destaques span { background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14.5px; padding: 6px 12px; border-radius: 20px; }
+
+.grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.cartao { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cartao p { color: var(--ink-2); font-size: 15.5px; }
+.cartao .marca { font-family: var(--mono); font-size: 12px; color: var(--rose); }
+.beneficio { border-top: 3px solid var(--accent); }
+
+.roda { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.passo { padding: 18px 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; position: relative; min-width: 0; }
+.passo:last-child { border-right: none; background: var(--accent-soft); }
+.passo .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.passo b { font-family: var(--display); font-size: 16px; }
+.passo span { font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.passo:not(:last-child)::after { content: '→'; position: absolute; right: -9px; top: 18px; width: 18px; height: 18px; display: grid; place-items: center; background: var(--surface); color: var(--accent); font-weight: 700; font-size: 13px; z-index: 1; }
+@media (max-width: 860px) {
+  .roda { grid-template-columns: minmax(0, 1fr); }
+  .passo { border-right: none; border-bottom: 1px solid var(--line); }
+  .passo:not(:last-child)::after { content: '↓'; right: auto; left: 14px; top: auto; bottom: -9px; }
+}
+
+.linha { display: flex; flex-direction: column; border-left: 2px solid var(--accent); margin-left: 6px; }
+.evento { position: relative; padding: 0 0 22px 22px; display: flex; flex-direction: column; gap: 4px; }
+.evento::before { content: ''; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.evento .quando { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+.evento p { color: var(--ink-2); max-width: 66ch; }
+.balao { align-self: flex-start; max-width: 60ch; background: var(--surface); border: 1px solid var(--line); border-radius: 12px 12px 12px 4px; padding: 8px 12px; font-size: 15px; color: var(--ink); margin-top: 4px; }
+.balao.dela { background: var(--accent-soft); border-color: transparent; border-radius: 12px 12px 4px 12px; }
+.balao small { display: block; font-size: 12px; color: var(--ink-3); }
+
+.tabela-rolagem { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 620px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 13px; color: var(--ink-3); font-weight: 600; background: var(--surface-2); }
+th.nossa, td.nossa { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+.sim { color: var(--ok); font-weight: 700; }
+.nao { color: var(--no); font-weight: 700; }
+.talvez { color: var(--ink-3); }
+.nota { font-size: 13.5px; color: var(--ink-3); }
+
+.modulos { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+.modulo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.modulo ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 15.5px; display: flex; flex-direction: column; gap: 4px; }
+
+.duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.lista-sim, .lista-nao { border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.lista-sim { background: var(--ok-soft); }
+.lista-nao { background: var(--no-soft); }
+.lista-sim h3 { color: var(--ok); }
+.lista-nao h3 { color: var(--no); }
+.lista-sim ul, .lista-nao ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); font-size: 15.5px; }
+
+.etapas { display: flex; flex-direction: column; gap: 10px; }
+.etapa { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 14px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.etapa .num { font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--accent); line-height: 1; }
+.etapa p { color: var(--ink-2); font-size: 15.5px; margin-top: 4px; }
+@media (max-width: 600px) { .etapa { grid-template-columns: 40px minmax(0, 1fr); } }
+
+.checklist { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 10px; }
+.checklist li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 12px 40px; position: relative; font-size: 15.5px; color: var(--ink-2); }
+.checklist li::before { content: ''; position: absolute; left: 14px; top: 15px; width: 14px; height: 14px; border: 2px solid var(--accent); border-radius: 4px; }
+.checklist li b { color: var(--ink); }
+
+.chamada { background: var(--ink); color: var(--bg); border-radius: 16px; padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; }
+.chamada h2 { color: var(--bg); }
+.chamada p { color: var(--bg); opacity: 0.85; max-width: 64ch; }
+
+.rodape { border-top: 1px solid var(--line); padding-top: 18px; font-size: 14px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<main class="doc">
+
+  <header class="capa">
+    <span class="rotulo">CRM Odonto · apresentação</span>
+    <h1>O paciente de convênio chega pelo WhatsApp — e sai com o tratamento particular aprovado</h1>
+    <p class="sub">Um CRM feito para a roda da clínica odontológica: a Letícia atende e agenda a avaliação a qualquer hora, o dentista mapeia o odontograma, o plano de tratamento separa o que o convênio cobre do que é particular, o paciente aprova pelo celular, e a limpeza semestral traz todo mundo de volta.</p>
+    <div class="destaques">
+      <span>Atende 24 horas</span>
+      <span>Convênio → particular</span>
+      <span>Odontograma e plano em etapas</span>
+      <span>Aprovação pelo celular</span>
+      <span>Retorno semestral automático</span>
+    </div>
+  </header>
+
+  <section class="secao">
+    <span class="rotulo">O que muda na clínica</span>
+    <h2>Os benefícios, em uma frase cada</h2>
+    <div class="grade">
+      <div class="cartao beneficio"><h3>Mais avaliações marcadas</h3><p>Quem chama à noite ou no fim de semana é atendido na hora, e a avaliação já entra na agenda do dentista.</p></div>
+      <div class="cartao beneficio"><h3>O convênio vira porta de entrada</h3><p>A Letícia pergunta "particular ou convênio?", sabe o que cada convênio cobre e marca o que é coberto — sem prometer o que não é.</p></div>
+      <div class="cartao beneficio"><h3>Orçamento que não fica na gaveta</h3><p>O plano em etapas vai para o paciente por um link. Ele aprova a etapa que quer começar, e quem não respondeu é retomado pela Letícia.</p></div>
+      <div class="cartao beneficio"><h3>A carteira que volta sozinha</h3><p>Quem fez a limpeza ganha a data do próximo retorno, e a Letícia chama na hora certa — dizendo quando o convênio cobre.</p></div>
+      <div class="cartao beneficio"><h3>Menos falta na cadeira</h3><p>Lembrete com "responda SIM" na véspera e confirmação na agenda.</p></div>
+      <div class="cartao beneficio"><h3>Quanto o convênio realmente traz</h3><p>Um painel mostra a roda inteira: entrada por convênio, planos apresentados, aprovados, particular aprovado e carteira em dia.</p></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">A roda da clínica odontológica</span>
+    <h2>Cada etapa alimenta a próxima — e o sistema acompanha todas</h2>
+    <div class="roda" role="list">
+      <div class="passo" role="listitem"><span class="n">1</span><b>Convênio</b><span>Traz o paciente; a Letícia agenda a avaliação</span></div>
+      <div class="passo" role="listitem"><span class="n">2</span><b>Odontograma</b><span>O dentista mapeia dente por dente</span></div>
+      <div class="passo" role="listitem"><span class="n">3</span><b>Plano em etapas</b><span>Convênio e particular, lado a lado</span></div>
+      <div class="passo" role="listitem"><span class="n">4</span><b>Aprovação</b><span>Pelo link, no celular do paciente</span></div>
+      <div class="passo" role="listitem"><span class="n">5</span><b>Tratamento</b><span>Cada item agendado e marcado como feito</span></div>
+      <div class="passo" role="listitem"><span class="n">6</span><b>Retorno</b><span>A limpeza semestral fecha a roda</span></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Na prática</span>
+    <h2>Um paciente, do primeiro contato ao retorno</h2>
+    <div class="linha">
+      <div class="evento"><span class="quando">domingo · 20h05</span><h3>Marcos escreve: "dente doendo, vocês atendem meu convênio?"</h3>
+        <span class="balao dela">Vocês atendem OdontoVida?<small>Marcos</small></span>
+        <span class="balao">Atendemos sim, Marcos! A avaliação é coberta pelo seu convênio. O dentista examina e já te explica o que o tratamento vai precisar. Tenho amanhã às 9h ou às 14h, qual fica melhor?<small>Letícia</small></span>
+        <p>A Letícia grava na ficha que o atendimento é pelo convênio. A consulta já nasce marcada como convênio — sozinha.</p></div>
+      <div class="evento"><span class="quando">segunda · 9h</span><h3>O dentista marca o odontograma</h3><p>Cárie nas faces M, O e D do 16, canal no 46, o 36 ausente. Tudo o que está "a tratar" fica em vermelho no desenho e numa lista ao lado.</p></div>
+      <div class="evento"><span class="quando">segunda · 9h40</span><h3>O plano de tratamento sai do odontograma</h3><p>Um clique traz os itens, já com o serviço sugerido. O que o OdontoVida cobre entra como convênio; o implante e o clareamento entram como particular, com o valor de tabela da clínica. Etapa 1 saúde, etapa 2 reabilitação, etapa 3 estética.</p></div>
+      <div class="evento"><span class="quando">segunda · 10h</span><h3>Marcos recebe o plano no WhatsApp</h3><p>Um link abre no celular: cada etapa, o que o convênio cobre, o valor do particular, desconto e validade. Ele aprova as etapas 1 e 2 e deixa o clareamento para depois.</p></div>
+      <div class="evento"><span class="quando">três dias depois</span><h3>A Letícia retoma a etapa que ficou de fora</h3>
+        <span class="balao">Oi, Marcos! Tudo bem? Ficou faltando decidir a parte estética do seu tratamento, o clareamento. Posso te ajudar com alguma dúvida?<small>Letícia</small></span>
+        <p>O link do plano vai junto, numa mensagem separada. Ela fala só os valores que estão no plano.</p></div>
+      <div class="evento"><span class="quando">durante o tratamento</span><h3>Cada item aprovado vira agendamento</h3><p>Com a baixa "compareceu", o item fica feito. Com todos feitos, o plano fica concluído — e a página Planos mostra o que está aprovado e o que está em aberto.</p></div>
+      <div class="evento"><span class="quando">seis meses depois da limpeza</span><h3>A Letícia chama para o retorno</h3>
+        <span class="balao">Oi, Marcos! Já está na época da sua limpeza de rotina. O seu convênio OdontoVida cobre. Qual dia ou período fica melhor pra você?<small>Letícia</small></span>
+        <p>A data do retorno se calculou sozinha quando a limpeza recebeu baixa. Quem já tem horário marcado não é chamado.</p></div>
+    </div>
+    <p class="nota">Conversa e paciente ilustrativos. Os textos da Letícia seguem o roteiro, o catálogo e os convênios de cada clínica.</p>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Como fica na tela</span>
+    <h2>O odontograma e o plano que o paciente aprova</h2>
+    <div class="grade">
+      <div class="cartao"><span class="marca">ficha do paciente</span><h3>Odontograma por dente e por face</h3><p>Numeração usada no Brasil, de 11 a 48, e dentes de leite quando é odontopediatria. Cárie, restauração, canal, coroa, implante, ausente, extração — cada marcação como "a tratar", "já existia" ou "tratado aqui", com histórico de quem marcou e quando.</p></div>
+      <div class="cartao"><span class="marca">link no celular do paciente</span><h3>Plano em etapas com aprovação</h3><p>Etapa por etapa, com o selo "Convênio" no que é coberto e o valor no que é particular. O paciente aprova tudo ou só o que quer começar. Plano vencido não se aprova; aprovado não se aprova duas vezes.</p></div>
+      <div class="cartao"><span class="marca">página Planos</span><h3>O funil da conversão</h3><p>Planos apresentados, aprovados (inteiros ou em parte), particular aprovado e particular em aberto — com o filtro por situação.</p></div>
+      <div class="cartao"><span class="marca">página Retornos</span><h3>A carteira em dia</h3><p>Quem passou do prazo, quem vence nos próximos 30 dias, quem já está marcado — e a porcentagem da carteira em dia.</p></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Por que esta solução</span>
+    <h2>A diferença para o que a clínica já tem</h2>
+    <div class="tabela-rolagem">
+      <table>
+        <thead><tr><th></th><th class="nossa">CRM Odonto com a Letícia</th><th>Só a recepção</th><th>Chatbot de menu</th></tr></thead>
+        <tbody>
+          <tr><td>Responde à noite e no fim de semana</td><td class="nossa"><span class="sim">Sim</span>, em conversa natural</td><td class="nao">Não</td><td class="sim">Sim</td></tr>
+          <tr><td>Consulta a agenda real e marca a avaliação</td><td class="nossa"><span class="sim">Sim</span>, por dentista</td><td class="sim">Sim, no horário</td><td class="talvez">Raramente</td></tr>
+          <tr><td>Sabe o que cada convênio cobre</td><td class="nossa"><span class="sim">Sim</span>, serviço por serviço</td><td class="talvez">Quem lembrar</td><td class="nao">Não</td></tr>
+          <tr><td>Separa convênio e particular no orçamento</td><td class="nossa"><span class="sim">Sim</span>, automaticamente</td><td class="talvez">À mão</td><td class="nao">Não</td></tr>
+          <tr><td>Paciente aprova o plano pelo celular</td><td class="nossa"><span class="sim">Sim</span>, por etapa</td><td class="nao">Não</td><td class="nao">Não</td></tr>
+          <tr><td>Retoma orçamento sem resposta</td><td class="nossa"><span class="sim">Sim</span>, com o link do plano</td><td class="talvez">Quando lembra</td><td class="nao">Não</td></tr>
+          <tr><td>Chama para a limpeza semestral</td><td class="nossa"><span class="sim">Sim</span>, na data certa</td><td class="talvez">Quando dá tempo</td><td class="talvez">Às vezes</td></tr>
+          <tr><td>Mostra quanto o convênio vira particular</td><td class="nossa"><span class="sim">Sim</span>, no painel da roda</td><td class="nao">Não</td><td class="nao">Não</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota">Comparação geral entre formas de atendimento, não com um produto específico.</p>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Tudo o que vem no sistema</span>
+    <h2>Os módulos</h2>
+    <div class="modulos">
+      <div class="modulo"><h3>Letícia, a atendente de IA</h3><ul><li>Texto, áudio e foto no WhatsApp da clínica</li><li>Marca, remarca e cancela na agenda real</li><li>Pergunta "particular ou convênio?" na hora certa</li><li>Passa para a equipe quando precisa de uma pessoa</li></ul></div>
+      <div class="modulo"><h3>Convênios</h3><ul><li>Os convênios aceitos e o que cada um cobre</li><li>O repasse por serviço, visível só para quem a direção autoriza</li><li>A consulta já nasce como convênio ou particular</li></ul></div>
+      <div class="modulo"><h3>Odontograma</h3><ul><li>Por dente e por face, com dentes de leite opcionais</li><li>Lista "a tratar" sempre à vista</li><li>Histórico de quem marcou, alterou ou apagou</li></ul></div>
+      <div class="modulo"><h3>Plano de tratamento</h3><ul><li>Gerado a partir do odontograma, em etapas</li><li>Convênio e particular separados, com desconto e validade</li><li>Link de aprovação e envio pelo WhatsApp</li></ul></div>
+      <div class="modulo"><h3>Retomada de planos</h3><ul><li>A Letícia volta a falar do plano parado</li><li>Usa só os valores do plano, sem inventar desconto</li><li>Prazos e número de tentativas ajustáveis</li></ul></div>
+      <div class="modulo"><h3>Retorno semestral</h3><ul><li>Data do retorno calculada na baixa da limpeza</li><li>A Letícia chama alguns dias antes</li><li>Página Retornos com a carteira em dia</li></ul></div>
+      <div class="modulo"><h3>Agenda e confirmação</h3><ul><li>Por dentista: dia, semana e mês, sem horário encavalado</li><li>Lembrete na véspera com "responda SIM"</li><li>Selo Confirmada na agenda</li></ul></div>
+      <div class="modulo"><h3>Funil, conversas e follow-up</h3><ul><li>Kanban do primeiro contato ao atendimento</li><li>Conversas com assumir, devolver e "Esperando a equipe"</li><li>Até três retomadas de quem parou de responder</li></ul></div>
+      <div class="modulo"><h3>Painel da roda e equipe</h3><ul><li>Entrada, avaliação, plano, aprovação e retorno no mesmo painel</li><li>Admin, Recepção e Profissional, ajustáveis por pessoa</li><li>No celular, como aplicativo, na cor da clínica</li></ul></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Responsabilidade</span>
+    <h2>O que a Letícia faz, e o que fica com o dentista</h2>
+    <div class="duas">
+      <div class="lista-sim"><h3>A Letícia faz</h3><ul><li>Acolhe, entende o que o paciente sente e agenda a avaliação</li><li>Diz quais convênios a clínica aceita e o que cobrem</li><li>Envia e retoma o plano preparado pelo dentista</li><li>Chama para o retorno e confirma presença</li><li>Trata dor forte e trauma como urgência e chama a equipe</li></ul></div>
+      <div class="lista-nao"><h3>A Letícia não faz</h3><ul><li>Não diagnostica nem confirma tratamento</li><li>Não promete que o convênio cobre o tratamento inteiro</li><li>Não fala valor que não esteja no catálogo ou no plano</li><li>Não fala mal de convênio</li><li>Não insiste com quem pediu para parar</li></ul></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Segurança e LGPD</span>
+    <h2>Os dados dos pacientes ficam com a clínica</h2>
+    <div class="grade">
+      <div class="cartao"><h3>Banco exclusivo</h3><p>Cada clínica tem a própria base de dados, separada de qualquer outra clínica da plataforma.</p></div>
+      <div class="cartao"><h3>Acesso por papel</h3><p>O dentista vê os pacientes que atende. Repasse, valores e orçamentos só para quem a direção autoriza.</p></div>
+      <div class="cartao"><h3>Link do plano protegido</h3><p>O paciente vê só o primeiro nome, a clínica e o plano — nada de telefone, ficha ou odontograma.</p></div>
+      <div class="cartao"><h3>Direito de não ser procurado</h3><p>Um pedido do paciente basta para tirá-lo de todo contato automático.</p></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Implantação</span>
+    <h2>Como a clínica entra no ar</h2>
+    <div class="etapas">
+      <div class="etapa"><span class="num">1</span><div><h3>Reunião de briefing</h3><p>Levantamos dentistas, horários, serviços, convênios e o que cada um cobre, condições de pagamento e as regras de atendimento.</p></div></div>
+      <div class="etapa"><span class="num">2</span><div><h3>Configuração</h3><p>Endereço próprio, acessos da equipe, catálogo odontológico pronto para revisar, convênios e valores de tabela. Um dentista revisa os textos dos serviços.</p></div></div>
+      <div class="etapa"><span class="num">3</span><div><h3>Teste com a equipe</h3><p>WhatsApp conectado com o modo de teste ligado: só a equipe conversa com a Letícia até a clínica aprovar.</p></div></div>
+      <div class="etapa"><span class="num">4</span><div><h3>No ar</h3><p>O atendimento abre para todos os pacientes, e a clínica liga os lembretes, a retomada de planos e o retorno semestral quando quiser.</p></div></div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <span class="rotulo">Da clínica</span>
+    <h2>O que precisamos receber</h2>
+    <ul class="checklist">
+      <li><b>O número de WhatsApp</b> da clínica, num celular que fique ligado</li>
+      <li><b>Os dentistas</b>, os horários de cada um e o que cada um faz</li>
+      <li><b>Os convênios</b>, o que cada um cobre e o repasse por serviço</li>
+      <li><b>Os valores de tabela</b> dos principais tratamentos</li>
+      <li><b>As condições de pagamento</b> que aparecem no plano</li>
+      <li><b>As regras</b>: urgências, o que nunca dizer, quando chamar uma pessoa</li>
+      <li><b>A equipe</b>: quem é admin, recepção e dentista</li>
+      <li><b>O histórico de limpezas</b>, se houver, para já calcular os retornos</li>
+    </ul>
+  </section>
+
+  <section class="chamada">
+    <h2>Próximo passo</h2>
+    <p>Uma reunião de briefing para conhecer a clínica, seguida de uma demonstração: a Letícia atendendo, um plano de tratamento de exemplo e o link de aprovação no seu próprio celular.</p>
+  </section>
+
+  <footer class="rodape">
+    Apresentação do produto. Condições comerciais e prazos de implantação são combinados na reunião.
+  </footer>
+</main>
+</body>
+</html>

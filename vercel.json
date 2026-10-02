@@ -1,12 +1,42 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "apresentacao.dbxodonto.online"
+        }
+      ],
+      "destination": "/crm-odonto/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
-    { "source": "/((?!clinicas/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!clinicas/|crm-odonto).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/clinicas/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/crm-odonto/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ]
 }
