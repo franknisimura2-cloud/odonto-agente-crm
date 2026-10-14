@@ -32,6 +32,7 @@ export const leads = {
 // url → corpo. `objeto` = o PostgREST pediu uma linha só (maybeSingle).
 export function responder(url, objeto) {
   const lead = (url.match(/lead_id=eq\.([\w-]+)/) || url.match(/[?&]id=eq\.([\w-]+)/) || [])[1]
+  if (url.includes('/functions/v1/') && url.includes('/conexao')) return { ok: true, provedor: 'evolution', estado: 'conectado', numero: '5511999990000', perfil: 'Recepção', webhook: 'apontado' }
   if (url.includes('/auth/v1/user')) return { id: '00000000-0000-0000-0000-000000000000', aud: 'authenticated', role: 'authenticated', email: 'teste@teste' }
   if (url.includes('/rest/v1/conversas_lista')) return conversas
   if (url.includes('/rest/v1/mensagens_whatsapp') && url.includes('select=')) return [...(mensagens[lead] || [])].reverse()
@@ -60,7 +61,7 @@ export function responder(url, objeto) {
     ]
   }
   if (rpc === 'dashboard_numeros') return [{ novos_contatos: 48, consultas_agendadas: 19 }]
-  if (rpc === 'dashboard_por_dia') return Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 29 + i); return { dia: d.toISOString().slice(0, 10), atendimentos: 1 + ((i * 7) % 5), agendamentos: (i * 3) % 3 } })
+  if (rpc === 'dashboard_por_dia') return Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 29 + i); return { dia: d.toISOString().slice(0, 10), atendimentos: 1 + ((i * 7) % 5), agendamentos: [0, 1, 2, 1, 0, 2, 1][i % 7] } })
   if (rpc === 'dashboard_dia_semana') return [0,1,2,3,4,5,6].map((d) => ({ dia_semana: d, contatos: [2, 9, 11, 8, 10, 7, 1][d] }))
   if (rpc === 'dashboard_profissionais') return [{ profissional_id: 'pd', nome: 'Danielle Freitas', cor: '#1E6E8C', consultas: 9 }, { profissional_id: 'pe', nome: 'Elis Camargo', cor: '#B45309', consultas: 4 }, { profissional_id: 'pm', nome: 'Marina Souza', cor: '#7C3AED', consultas: 6 }]
   if (rpc === 'dashboard_procedimentos') return [['Tratamento facial - Aplicação de Toxina Botulínica', 14, 3], ['Tratamento facial - Limpeza de Pele Profunda', 11, 8], ['Avaliação Estética', 9, 7], ['Tratamento corporal - Depilação a Laser', 7, 0], ['Tratamento corporal - Drenagem Linfática Corporal', 4, 4]].map(([procedimento, procurado, realizado]) => ({ procedimento, procurado, realizado }))

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>body{margin:0}</style>
-<title>CRM Odonto para clínicas</title>
+<title>CRM Odonto: o sistema completo da clínica</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
@@ -130,6 +130,35 @@ tr:last-child td { border-bottom: none; }
 .chamada p { color: var(--bg); opacity: 0.85; max-width: 64ch; }
 
 .rodape { border-top: 1px solid var(--line); padding-top: 18px; font-size: 14px; color: var(--ink-3); }
+
+/* O sistema por dentro: telas reais, em moldura de navegador e de celular. */
+.capa-tela { margin-top: 8px; }
+.tela { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 18px 40px -24px rgba(20, 20, 40, 0.35); }
+.tela::before { content: ''; display: block; height: 26px; border-bottom: 1px solid var(--line); background:
+  radial-gradient(circle at 14px 13px, #E5484D 4px, transparent 4.5px),
+  radial-gradient(circle at 30px 13px, #F5A524 4px, transparent 4.5px),
+  radial-gradient(circle at 46px 13px, #30A46C 4px, transparent 4.5px), var(--surface-2); }
+.tela img, .celular img { display: block; width: 100%; height: auto; }
+.duas-partes { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.parte { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.parte ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 15.5px; display: flex; flex-direction: column; gap: 4px; }
+.parte .marca { font-family: var(--mono); font-size: 12px; color: var(--rose); }
+.elo { align-self: center; font-family: var(--display); font-weight: 800; color: var(--accent); font-size: 26px; }
+@media (max-width: 760px) { .duas-partes { grid-template-columns: minmax(0, 1fr); } .elo { justify-self: center; transform: rotate(90deg); } }
+.tour { display: flex; flex-direction: column; gap: 40px; }
+.passeio { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 28px; align-items: center; }
+.passeio:nth-child(even) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr); }
+.passeio:nth-child(even) .tela, .passeio:nth-child(even) .celulares { order: 2; }
+.passeio .texto { display: flex; flex-direction: column; gap: 8px; }
+.passeio .texto .marca { font-family: var(--mono); font-size: 12px; color: var(--rose); }
+.passeio .texto p { color: var(--ink-2); font-size: 16px; }
+.passeio .texto ul { margin: 4px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 15.5px; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 860px) { .passeio, .passeio:nth-child(even) { grid-template-columns: minmax(0, 1fr); gap: 14px; } .passeio:nth-child(even) .tela, .passeio:nth-child(even) .celulares { order: 0; } }
+.celulares { display: flex; gap: 16px; justify-content: center; }
+.celular { flex: 0 1 230px; min-width: 0; border: 8px solid var(--ink); border-radius: 30px; overflow: hidden; background: var(--ink); box-shadow: 0 18px 40px -24px rgba(20, 20, 40, 0.45); }
+.celular img { border-radius: 22px; }
+a.tela, a.celular { text-decoration: none; }
+a.tela:focus-visible, a.celular:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>
 </head>
 <body>
@@ -137,16 +166,28 @@ tr:last-child td { border-bottom: none; }
 
   <header class="capa">
     <span class="rotulo">CRM Odonto · apresentação</span>
-    <h1>O paciente de convênio chega pelo WhatsApp — e sai com o tratamento particular aprovado</h1>
-    <p class="sub">Um CRM feito para a roda da clínica odontológica: a Letícia atende e agenda a avaliação a qualquer hora, o dentista mapeia o odontograma, o plano de tratamento separa o que o convênio cobre do que é particular, o paciente aprova pelo celular, e a limpeza semestral traz todo mundo de volta.</p>
+    <h1>O sistema completo da clínica odontológica — do paciente de convênio ao tratamento particular aprovado</h1>
+    <p class="sub">Não é só um robô de WhatsApp. É onde a clínica inteira trabalha: agenda por dentista, odontograma, plano de tratamento em etapas, convênios, retornos e o painel com a roda da clínica. A Letícia, a atendente de IA, atende e agenda a qualquer hora — e tudo o que ela faz cai direto no sistema da equipe.</p>
     <div class="destaques">
-      <span>Atende 24 horas</span>
-      <span>Convênio → particular</span>
       <span>Odontograma e plano em etapas</span>
       <span>Aprovação pelo celular</span>
-      <span>Retorno semestral automático</span>
+      <span>Convênio → particular</span>
+      <span>Retorno semestral</span>
+      <span>Atendimento 24 horas</span>
     </div>
+    <a class="tela capa-tela" href="telas/painel.jpg" target="_blank" rel="noopener"><img src="telas/painel.jpg" width="2160" height="1350" alt="Painel do CRM Odonto com a roda da clínica: entrada, avaliados, plano apresentado e plano aprovado"></a>
   </header>
+
+  <section class="secao">
+    <span class="rotulo">A solução</span>
+    <h2>Duas partes que funcionam como uma só</h2>
+    <div class="duas-partes">
+      <div class="parte"><span class="marca">o CRM · onde a equipe trabalha</span><h3>O sistema de gestão da clínica</h3><ul><li>Agenda de cada dentista, no computador e no celular</li><li>Odontograma por dente e por face</li><li>Plano de tratamento com convênio e particular separados</li><li>Convênios e o que cada um cobre</li><li>Retornos e carteira em dia</li><li>Painel com a roda da clínica</li></ul></div>
+      <span class="elo" aria-hidden="true">+</span>
+      <div class="parte"><span class="marca">a Letícia · quem atende no WhatsApp</span><h3>A atendente de IA</h3><ul><li>Responde a qualquer hora, por texto, áudio e foto</li><li>Pergunta "particular ou convênio?" e sabe o que é coberto</li><li>Marca a avaliação na agenda real</li><li>Envia e retoma o plano de tratamento</li><li>Chama para a limpeza na data certa</li><li>Chama a equipe em dor forte e urgência</li></ul></div>
+    </div>
+    <p>A diferença está na ligação entre as duas. A avaliação que a Letícia marca já nasce como convênio ou particular; o plano que o dentista monta no sistema é o que ela envia e retoma; a limpeza que recebe baixa vira a data do próximo retorno que ela vai chamar. Nada é digitado duas vezes.</p>
+  </section>
 
   <section class="secao">
     <span class="rotulo">O que muda na clínica</span>
@@ -197,14 +238,50 @@ tr:last-child td { border-bottom: none; }
   </section>
 
   <section class="secao">
-    <span class="rotulo">Como fica na tela</span>
-    <h2>O odontograma e o plano que o paciente aprova</h2>
-    <div class="grade">
-      <div class="cartao"><span class="marca">ficha do paciente</span><h3>Odontograma por dente e por face</h3><p>Numeração usada no Brasil, de 11 a 48, e dentes de leite quando é odontopediatria. Cárie, restauração, canal, coroa, implante, ausente, extração — cada marcação como "a tratar", "já existia" ou "tratado aqui", com histórico de quem marcou e quando.</p></div>
-      <div class="cartao"><span class="marca">link no celular do paciente</span><h3>Plano em etapas com aprovação</h3><p>Etapa por etapa, com o selo "Convênio" no que é coberto e o valor no que é particular. O paciente aprova tudo ou só o que quer começar. Plano vencido não se aprova; aprovado não se aprova duas vezes.</p></div>
-      <div class="cartao"><span class="marca">página Planos</span><h3>O funil da conversão</h3><p>Planos apresentados, aprovados (inteiros ou em parte), particular aprovado e particular em aberto — com o filtro por situação.</p></div>
-      <div class="cartao"><span class="marca">página Retornos</span><h3>A carteira em dia</h3><p>Quem passou do prazo, quem vence nos próximos 30 dias, quem já está marcado — e a porcentagem da carteira em dia.</p></div>
+    <span class="rotulo">O sistema por dentro</span>
+    <h2>As telas que a equipe usa todo dia</h2>
+    <div class="tour">
+      <div class="passeio">
+        <a class="tela" href="telas/painel.jpg" target="_blank" rel="noopener"><img src="telas/painel.jpg" width="2160" height="1350" loading="lazy" alt="Painel com a roda da clínica"></a>
+        <div class="texto"><span class="marca">Dashboard · a roda da clínica</span><h3>Quanto o convênio realmente traz</h3><p>Do paciente que entra pelo convênio ao plano particular aprovado, num painel só, no período que a direção escolher.</p><ul><li>Entrada, avaliados, plano apresentado e plano aprovado</li><li>Convênio que virou particular e o ticket médio aprovado</li><li>Carteira em dia com os retornos</li><li>Tudo separado por convênio</li></ul></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/odontograma.jpg" target="_blank" rel="noopener"><img src="telas/odontograma.jpg" width="2160" height="1350" loading="lazy" alt="Ficha do paciente com o odontograma e o plano de tratamento em etapas"></a>
+        <div class="texto"><span class="marca">Ficha do paciente</span><h3>Odontograma e plano de tratamento no mesmo lugar</h3><p>O dentista marca dente por dente e o plano sai do odontograma, já em etapas, com o que o convênio cobre e o valor do particular.</p><ul><li>Numeração de 11 a 48, com dentes de leite</li><li>Etapa 1 saúde, etapa 2 reabilitação, etapa 3 estética</li><li>Enviar pelo WhatsApp, copiar o link ou ver como o paciente</li></ul></div>
+      </div>
+      <div class="passeio">
+        <div class="celulares">
+          <a class="celular" href="telas/cel-orcamento.jpg" target="_blank" rel="noopener"><img src="telas/cel-orcamento.jpg" width="780" height="1688" loading="lazy" alt="Plano de tratamento aberto no celular do paciente, com as etapas para aprovar"></a>
+          <a class="celular" href="telas/cel-agenda.jpg" target="_blank" rel="noopener"><img src="telas/cel-agenda.jpg" width="780" height="1688" loading="lazy" alt="Agenda do dia no celular"></a>
+        </div>
+        <div class="texto"><span class="marca">No celular</span><h3>O paciente aprova; o dentista consulta a agenda</h3><p>O paciente recebe o plano por um link e aprova tudo ou só as etapas que quer começar — com o selo "Convênio" no que é coberto. A equipe usa o mesmo sistema no celular, como aplicativo, na cor da clínica.</p></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/planos.jpg" target="_blank" rel="noopener"><img src="telas/planos.jpg" width="2160" height="1350" loading="lazy" alt="Página Planos com apresentados, aprovados e particular em aberto"></a>
+        <div class="texto"><span class="marca">Planos</span><h3>Orçamento que não fica na gaveta</h3><p>Todos os planos da clínica, com a situação de cada um e quanto do particular está aprovado ou em aberto.</p><ul><li>Apresentado, aprovado em parte, aprovado, concluído, recusado</li><li>Particular aprovado e em aberto, em reais</li><li>A Letícia retoma o plano que ficou sem resposta</li></ul></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/retornos.jpg" target="_blank" rel="noopener"><img src="telas/retornos.jpg" width="2160" height="1350" loading="lazy" alt="Página Retornos com a carteira em dia e quem passou do prazo"></a>
+        <div class="texto"><span class="marca">Retornos</span><h3>A carteira que volta sozinha</h3><p>Quem fez a limpeza ganha a data do próximo retorno. A página mostra quem passou do prazo, quem vence nos próximos 30 dias e quem já está marcado.</p><ul><li>Porcentagem da carteira em dia</li><li>A Letícia chama alguns dias antes</li><li>Quem já tem horário não é chamado</li></ul></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/convenios.jpg" target="_blank" rel="noopener"><img src="telas/convenios.jpg" width="2160" height="1350" loading="lazy" alt="Página Convênios com os convênios aceitos e as coberturas"></a>
+        <div class="texto"><span class="marca">Convênios</span><h3>Cada convênio e o que ele cobre</h3><p>A clínica cadastra os convênios que aceita e marca o que cada um cobre. A Letícia usa isso para responder, e a consulta já nasce como convênio ou particular.</p><ul><li>Coberturas serviço por serviço</li><li>Ativar ou desativar a qualquer momento</li><li>Repasse visível só para quem a direção autoriza</li></ul></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/conversas.jpg" target="_blank" rel="noopener"><img src="telas/conversas.jpg" width="2160" height="1350" loading="lazy" alt="Tela de conversas com a Letícia atendendo uma paciente de convênio"></a>
+        <div class="texto"><span class="marca">Conversas</span><h3>O WhatsApp da clínica, com a IA e a equipe na mesma conversa</h3><p>Tudo o que a Letícia respondeu fica à vista. Quando precisa, alguém da equipe assume a conversa, responde do computador e depois devolve para ela.</p><ul><li>Filtros "Esperando a equipe", "Agendadas" e "Não lidas"</li><li>Ao lado, a ficha da pessoa e os agendamentos</li><li>Baixa de comparecimento com um clique</li></ul></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/crm.jpg" target="_blank" rel="noopener"><img src="telas/crm.jpg" width="2160" height="1350" loading="lazy" alt="Funil do CRM com as colunas de atendimento"></a>
+        <div class="texto"><span class="marca">CRM · funil</span><h3>Cada paciente num card, do primeiro contato ao retorno</h3><p>O funil mostra em que pé está cada pessoa. Os cards andam sozinhos conforme a Letícia conversa e a agenda recebe baixa — e a equipe também pode arrastar.</p><ul><li>Iniciou conversa, conversando, agendou, compareceu, recorrente</li><li>Colunas de follow-up para quem parou de responder</li><li>Filtro por período</li></ul></div>
+      </div>
+      <div class="passeio">
+        <a class="tela" href="telas/agenda.jpg" target="_blank" rel="noopener"><img src="telas/agenda.jpg" width="2160" height="1350" loading="lazy" alt="Agenda da semana com os horários dos dentistas"></a>
+        <div class="texto"><span class="marca">Agenda</span><h3>A agenda de todos os dentistas, sem encavalar</h3><p>Semana ou mês, cada dentista na sua cor. O que a Letícia marca e o que a recepção marca aparecem no mesmo lugar.</p><ul><li>Selo de confirmada quando o paciente responde SIM</li><li>Horários, folgas e bloqueios de cada dentista</li><li>O sistema impede dois atendimentos no mesmo horário</li></ul></div>
+      </div>
     </div>
+    <p class="nota">Telas reais do sistema, com dados de exemplo de uma clínica fictícia.</p>
   </section>
 
   <section class="secao">
@@ -212,7 +289,7 @@ tr:last-child td { border-bottom: none; }
     <h2>A diferença para o que a clínica já tem</h2>
     <div class="tabela-rolagem">
       <table>
-        <thead><tr><th></th><th class="nossa">CRM Odonto com a Letícia</th><th>Só a recepção</th><th>Chatbot de menu</th></tr></thead>
+        <thead><tr><th></th><th class="nossa">CRM Odonto + Letícia</th><th>Só a recepção</th><th>Chatbot de menu</th></tr></thead>
         <tbody>
           <tr><td>Responde à noite e no fim de semana</td><td class="nossa"><span class="sim">Sim</span>, em conversa natural</td><td class="nao">Não</td><td class="sim">Sim</td></tr>
           <tr><td>Consulta a agenda real e marca a avaliação</td><td class="nossa"><span class="sim">Sim</span>, por dentista</td><td class="sim">Sim, no horário</td><td class="talvez">Raramente</td></tr>
@@ -221,6 +298,7 @@ tr:last-child td { border-bottom: none; }
           <tr><td>Paciente aprova o plano pelo celular</td><td class="nossa"><span class="sim">Sim</span>, por etapa</td><td class="nao">Não</td><td class="nao">Não</td></tr>
           <tr><td>Retoma orçamento sem resposta</td><td class="nossa"><span class="sim">Sim</span>, com o link do plano</td><td class="talvez">Quando lembra</td><td class="nao">Não</td></tr>
           <tr><td>Chama para a limpeza semestral</td><td class="nossa"><span class="sim">Sim</span>, na data certa</td><td class="talvez">Quando dá tempo</td><td class="talvez">Às vezes</td></tr>
+          <tr><td>A equipe acompanha e assume as conversas da IA</td><td class="nossa"><span class="sim">Sim</span>, na mesma tela</td><td class="talvez">—</td><td class="nao">Não</td></tr>
           <tr><td>Mostra quanto o convênio vira particular</td><td class="nossa"><span class="sim">Sim</span>, no painel da roda</td><td class="nao">Não</td><td class="nao">Não</td></tr>
         </tbody>
       </table>
