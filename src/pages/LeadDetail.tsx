@@ -9,6 +9,7 @@ import { buscarPorWhatsapp, ERRO_DUPLICADO, type PessoaResumo } from '../lib/con
 import { STATUS_CONSULTA, ROTULO_CONSULTA, STATUS_LEAD, ROTULO_LEAD } from '../lib/statusLead'
 import CampoTelefone from '../components/CampoTelefone'
 import ApagarEstaPessoa from '../components/ApagarEstaPessoa'
+import RetornosCombinados from '../components/RetornosCombinados'
 import Odontograma from '../components/Odontograma'
 import PlanoTratamento from '../components/PlanoTratamento'
 import type { ItemPlano } from '../lib/planos'
@@ -892,6 +893,8 @@ export default function LeadDetail() {
           </fieldset>
 
         </SectionCard>
+
+        <RetornosCombinados leadId={lead.id} podeEditar={podePessoas || acesso.pode('conversas')} />
       </div>
 
       {/* A ZONA DE PERIGO É A ÚLTIMA COISA DA PÁGINA.

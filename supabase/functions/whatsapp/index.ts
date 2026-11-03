@@ -40,6 +40,7 @@ import { lerConfirmacao, textoDoLembrete, textoDaConfirmacao, type Lembrete } fr
 import type { MensagemRecebida, Ponte } from '../_shared/whatsapp.ts'
 import { planoAberto, instrucaoDeRetomada } from '../_shared/planos.ts'
 import { retornoDaPessoa, instrucaoDeRetorno } from '../_shared/retornos.ts'
+import { instrucaoDeRetornoCombinado } from '../_shared/retornos-combinados.ts'
 
 const SEGREDO = Deno.env.get('WEBHOOK_SEGREDO') ?? ''
 const URL_SUPABASE = Deno.env.get('SUPABASE_URL')!
@@ -147,6 +148,7 @@ Deno.serve(async (req) => {
     if (req.method === 'POST' && rota === '/lembretes') return await rotaLembretes(req)
     if (req.method === 'POST' && rota === '/planos-retomar') return await rotaPlanosRetomar(req)
     if (req.method === 'POST' && rota === '/retornos') return await rotaRetornos(req)
+    if (req.method === 'POST' && rota === '/retornos-combinados') return await rotaRetornosCombinados(req)
     if (req.method === 'POST' && rota === '/enviar') return await rotaEnviar(req)
     if (req.method === 'GET' && rota === '/prompt-oficial') return await rotaPromptOficial(req)
     if (req.method === 'GET' && rota === '/foto') return await rotaFoto(req)
@@ -1107,6 +1109,123 @@ async function escreverRetorno(leadId: string, toque: number): Promise<string | 
     modelo: cfg[0]?.modelo ?? 'gpt-4.1-mini',
     sistema,
     mensagens: await montarHistorico(lead.id),
+    ferramentas: [],
+  })
+  const texto = r.texto.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)[0] ?? ''
+  if (!texto) throw new Error('o modelo devolveu texto vazio')
+  return texto
+}
+
+// ---------------------------------------------------------------------------
+// Retorno combinado — "fale comigo de novo em março" (migração 0048)
+//
+// Mesmo desenho dos lembretes: `disparar_retornos_combinados()` acorda esta
+// rota quando há fila; QUEM e QUANDO é da `retornos_combinados_pendentes()`.
+// A reserva marca "enviado" ANTES de escrever (duas batidas do relógio nunca
+// mandam o mesmo contato duas vezes) e devolve se o envio falhar. O texto é do
+// modelo, sobre o MOTIVO combinado (`_shared/retornos-combinados.ts`). Se a
+// pessoa responder, a conversa segue pelo caminho normal, com as ferramentas.
+// ---------------------------------------------------------------------------
+
+interface RetornoCombinadoPendente {
+  id: string
+  lead_id: string
+  whatsapp: string
+  nome: string | null
+  para_data: string
+  motivo: string
+}
+
+async function rotaRetornosCombinados(req: Request): Promise<Response> {
+  const url = new URL(req.url)
+  const enviado = req.headers.get('x-webhook-segredo') ?? url.searchParams.get('segredo') ?? ''
+  if (!SEGREDO || enviado !== SEGREDO) {
+    return json({ ok: false, motivo: 'nao_autorizado' }, 401)
+  }
+
+  // ?simular=<id do retorno>: escreve a mensagem e devolve, sem reservar nem mandar.
+  const simular = url.searchParams.get('simular')
+  if (simular) {
+    const [r] = await selecionar<{ lead_id: string; para_data: string; motivo: string }>(
+      `retornos_combinados?select=lead_id,para_data,motivo&id=eq.${simular}&limit=1`,
+    )
+    if (!r) return json({ ok: false, motivo: 'retorno_nao_existe' }, 404)
+    const texto = await escreverRetornoCombinado(r.lead_id, r.motivo, r.para_data)
+    return json({ ok: true, simulacao: true, mensagens: [texto] })
+  }
+
+  const fila = (await rpc<RetornoCombinadoPendente[]>('retornos_combinados_pendentes', {})).slice(0, MAX_FOLLOWUPS)
+  if (!fila.length) return json({ ok: true, enviados: 0 })
+
+  const reservados: RetornoCombinadoPendente[] = []
+  for (const p of fila) {
+    try {
+      if (await rpc<boolean>('retorno_combinado_reservar', { p_id: p.id })) reservados.push(p)
+    } catch (e) {
+      console.error('reservar retorno combinado:', e)
+    }
+  }
+
+  const trabalho = (async () => {
+    for (const p of reservados) {
+      try {
+        const texto = await escreverRetornoCombinado(p.lead_id, p.motivo, p.para_data)
+        const ponte = await ponteAtiva()
+        const pausa = Math.min(5000, Math.max(1200, texto.length * 22))
+        await ponte.digitando(p.whatsapp, pausa)
+        await new Promise((espere) => setTimeout(espere, pausa))
+        const idExterno = await ponte.enviarTexto(p.whatsapp, texto)
+        await inserir('mensagens_whatsapp', {
+          lead_id: p.lead_id, autor: 'agente', tipo: 'texto', conteudo: texto, id_externo: idExterno, lida: true,
+        }, true)
+        await atualizar('retornos_combinados', `id=eq.${p.id}`, { texto })
+        console.log(`retorno combinado enviado: ${p.id}`)
+      } catch (e) {
+        console.error(`retorno combinado ${p.id}:`, e)
+        await rpc('retorno_combinado_devolver', { p_id: p.id }).catch(() => {})
+      }
+    }
+  })()
+  emSegundoPlano(trabalho)
+
+  return json({ ok: true, enviados: reservados.length })
+}
+
+async function escreverRetornoCombinado(leadId: string, motivo: string, paraData: string): Promise<string> {
+  const leads = await selecionar<Lead>(`crm_clinica?select=${CAMPOS_LEAD}&id=eq.${leadId}&limit=1`)
+  const lead = leads[0]
+  if (!lead) throw new Error('lead sumiu entre a fila e o envio')
+
+  const [cfg, clinica] = await Promise.all([
+    selecionar<{ modelo: string; prompt: string | null; nome_agente: string }>(
+      'configuracoes_agente?select=modelo,prompt,nome_agente&limit=1',
+    ),
+    selecionar<{ fuso_horario: string | null }>('configuracoes_clinica?select=fuso_horario&limit=1'),
+  ])
+  const fuso = clinica[0]?.fuso_horario || FUSO_PADRAO
+
+  const ficha = await montarFicha(lead.id, lead, fuso)
+  const sistema = (await montarPrompt(cfg[0]?.prompt, ficha, cfg[0]?.nome_agente)) +
+    instrucaoDeRetornoCombinado(motivo, paraData)
+
+  // A CONVERSA TERMINA NUM AVISO INTERNO. Sem ele, o modelo responde à última
+  // mensagem da conversa antiga ("qualquer coisa, é só avisar!") e ignora a
+  // instrução: meses depois, a última fala ainda pesa mais que o sistema. O
+  // follow-up não precisa disso porque ali continuar a conversa É o objetivo.
+  const historico = await montarHistorico(lead.id)
+  historico.push({
+    papel: 'user',
+    conteudo: '[AVISO INTERNO — não foi a pessoa que escreveu, e ela não vê isto] Chegou o dia do ' +
+      'retorno combinado. Escreva agora a mensagem para ela, seguindo "# AGORA: VOCÊ ESTÁ ' +
+      'RETOMANDO UM CONTATO COMBINADO": fale só desse assunto, sem oferecer outro serviço ou ' +
+      'tratamento. Não responda a este aviso nem às mensagens antigas.',
+  })
+
+  // Sem ferramentas, como o follow-up: este contato só puxa o assunto.
+  const r = await conversar({
+    modelo: cfg[0]?.modelo ?? 'gpt-4.1-mini',
+    sistema,
+    mensagens: historico,
     ferramentas: [],
   })
   const texto = r.texto.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)[0] ?? ''

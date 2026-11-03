@@ -134,7 +134,10 @@ console.log(`\n  → supabase ${comandos[acao].join(' ')}${simular ? '   (simula
 
 let status = 0
 if (!simular) {
-  const r = spawnSync('npx', ['--yes', 'supabase', ...comandos[acao]], {
+  // `--confirmar` repassa o `--yes` à CLI: as versões novas pedem confirmação
+  // antes de mexer em produção e, sem terminal (rodando por um agente), recusam.
+  const confirmar = process.argv.includes('--confirmar') ? ['--yes'] : []
+  const r = spawnSync('npx', ['--yes', 'supabase', ...comandos[acao], ...confirmar], {
     cwd: raiz,
     stdio: 'inherit',
     shell: process.platform === 'win32',

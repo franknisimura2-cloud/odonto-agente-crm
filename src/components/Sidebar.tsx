@@ -22,6 +22,7 @@ import {
   LogOut,
   Menu,
   X,
+  CalendarCheck,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { AGENTE_PAGINA } from '../lib/agente'
@@ -56,6 +57,7 @@ const NAV_ITEMS: { to: string; label: string; icon: typeof Users; end?: boolean;
   { to: '/clientes', label: 'Clientes', icon: UserCheck, permite: (a) => a.pode('pessoas') },
   { to: '/planos', label: 'Planos', icon: FileText, permite: (a) => a.pode('orcamentos') || a.pode('odontograma') },
   { to: '/retornos', label: 'Retornos', icon: CalendarClock, permite: (a) => a.pode('pessoas') },
+  { to: '/retornos-combinados', label: 'Combinados', icon: CalendarCheck, permite: (a) => a.pode('pessoas') || a.pode('conversas') },
   { to: '/profissionais', label: 'Profissionais', icon: BriefcaseBusiness, permite: configura },
   { to: '/servicos', label: 'Serviços', icon: ClipboardList, permite: configura },
   { to: '/convenios', label: 'Convênios', icon: ShieldCheck, permite: configura },

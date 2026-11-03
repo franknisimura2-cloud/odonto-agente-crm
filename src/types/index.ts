@@ -444,6 +444,8 @@ export interface ConfiguracoesAgente {
   lembrete_antes_minutos: number
   /** A véspera pede "responda SIM"; o SIM vira o selo "Confirmada" na Agenda. */
   lembrete_pedir_confirmacao: boolean
+  /** Retorno combinado (0048): a agente chama no dia marcado na ficha. Nasce desligado. */
+  retornos_combinados_ativo: boolean
   /** Follow-up (0030 e 0046): a chave geral nasce desligada e liga na tela. */
   followup_ativo: boolean
   followup_1_ativo: boolean

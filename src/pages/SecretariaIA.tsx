@@ -139,7 +139,8 @@ type Lembretes = Pick<ConfiguracoesAgente,
   'retornos_ativo' | 'retornos_antecedencia' | 'retornos_intervalo_dias' | 'retornos_toques' |
   'planos_retomar_ativo' | 'planos_retomar_dias' | 'planos_retomar_toques' |
   'lembretes_ativo' | 'lembrete_vespera_ativo' | 'lembrete_vespera_horas' |
-  'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao'>
+  'lembrete_antes_ativo' | 'lembrete_antes_minutos' | 'lembrete_pedir_confirmacao' |
+  'retornos_combinados_ativo'>
 
 const LEMBRETES_PADRAO: Lembretes = {
   passagem_avisar: [],
@@ -165,6 +166,7 @@ const LEMBRETES_PADRAO: Lembretes = {
   lembrete_antes_ativo: true,
   lembrete_antes_minutos: 30,
   lembrete_pedir_confirmacao: true,
+  retornos_combinados_ativo: false,
 }
 
 function lembretesDe(c: ConfiguracoesAgente): Lembretes {
@@ -192,6 +194,7 @@ function lembretesDe(c: ConfiguracoesAgente): Lembretes {
     lembrete_antes_ativo: c.lembrete_antes_ativo ?? true,
     lembrete_antes_minutos: c.lembrete_antes_minutos ?? 30,
     lembrete_pedir_confirmacao: c.lembrete_pedir_confirmacao ?? true,
+    retornos_combinados_ativo: c.retornos_combinados_ativo ?? false,
   }
 }
 
@@ -1127,6 +1130,36 @@ export default function SecretariaIA() {
         <p style={{ ...legenda, marginTop: 14 }}>
           Só no horário comercial da {nomeAgente}. Não retoma quem está conversando, quem já aprovou,
           plano vencido, conversa assumida pela equipe, nem quem pediu para não ser procurado.
+          {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
+        </p>
+      </div>
+
+      {/* ---------------- Retornos combinados (0048) ----------------
+
+          Quem marca é a equipe, na ficha da pessoa. Aqui só se decide se a
+          assistente manda no dia. Uma mensagem por retorno, sem insistir. */}
+      <div className="cartao" style={cartao}>
+        <div style={titulo}>Retornos combinados</div>
+        <p style={{ ...legenda, marginBottom: 16 }}>
+          Quando a pessoa pede para ser procurada mais tarde ("me chama depois da viagem", "volto a
+          pensar no fim do ano"), a equipe marca a data e o motivo na ficha dela. No dia, a {nomeAgente} manda
+          uma mensagem sobre esse assunto.
+        </p>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={lemb.retornos_combinados_ativo}
+            onChange={(e) => setLemb({ ...lemb, retornos_combinados_ativo: e.target.checked })}
+            style={{ width: 16, height: 16, accentColor: MARCA, cursor: 'pointer' }} />
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#16232B' }}>
+            Enviar no dia combinado
+          </span>
+        </label>
+
+        <p style={{ ...legenda, marginTop: 14 }}>
+          Uma mensagem só por retorno: quem não responder não recebe outra. Sai no mesmo horário das
+          outras mensagens automáticas, nunca para quem pediu para não ser procurado ou tem a conversa
+          assumida, e espera quem conversou nas últimas 24 horas. Se passar mais de 14 dias do combinado
+          (com a {nomeAgente} desligada, por exemplo), não sai sozinho: aparece como atrasado na página Retornos.
           {modoTeste && ' Com o modo de teste ligado, só os números de teste recebem.'}
         </p>
       </div>

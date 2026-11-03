@@ -26,6 +26,7 @@
 import { selecionar } from './db.ts'
 import { planoAberto, linhaDaFicha } from './planos.ts'
 import { retornoDaPessoa, linhaDaFichaRetorno } from './retornos.ts'
+import { linhasDoRetornoCombinado } from './retornos-combinados.ts'
 import { PROMPT_OFICIAL } from './prompt-oficial.ts'
 
 const FUSO_PADRAO = 'America/Sao_Paulo'
@@ -119,10 +120,13 @@ export async function montarFicha(
   pessoa: DadosDaPessoa,
   fuso: string,
 ): Promise<string> {
-  const consultas = await selecionar<ConsultaResumo>(
-    `consultas?select=procedimento,data_consulta,status,profissional:profissionais(nome,sobrenome)` +
-    `&lead_id=eq.${leadId}&order=data_consulta.desc&limit=50`,
-  )
+  const [consultas, combinado] = await Promise.all([
+    selecionar<ConsultaResumo>(
+      `consultas?select=procedimento,data_consulta,status,profissional:profissionais(nome,sobrenome)` +
+      `&lead_id=eq.${leadId}&order=data_consulta.desc&limit=50`,
+    ),
+    linhasDoRetornoCombinado(leadId),
+  ])
 
   const agora = Date.now()
   const proxima = consultas
@@ -228,6 +232,9 @@ export async function montarFicha(
     const retorno = await retornoDaPessoa(leadId, pessoa, fuso).catch(() => null)
     if (retorno) linhas.push(linhaDaFichaRetorno(retorno))
   }
+
+  // O retorno combinado (0048): o contato que ela mandou e o que ainda vai.
+  linhas.push(...combinado)
 
   if (!linhas.length) {
     return 'Você ainda não sabe nada sobre esta pessoa. É a primeira vez que ela escreve para cá.'

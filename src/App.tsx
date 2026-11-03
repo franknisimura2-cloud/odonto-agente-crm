@@ -18,6 +18,7 @@ import Retornos from './pages/Retornos'
 import OrcamentoPublico from './pages/OrcamentoPublico'
 import SecretariaIA from './pages/SecretariaIA'
 import TokenApi from './pages/TokenApi'
+import RetornosCombinados from './pages/RetornosCombinados'
 import { ExigeAcesso } from './components/AcessoProvider'
 import { veAgenda, veFichas, type Acesso } from './lib/acesso'
 
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="/clientes" element={so((a) => a.pode('pessoas'), <Clientes />)} />
             <Route path="/planos" element={so((a) => a.pode('orcamentos') || a.pode('odontograma'), <Planos />)} />
             <Route path="/retornos" element={so((a) => a.pode('pessoas'), <Retornos />)} />
+            <Route path="/retornos-combinados" element={so((a) => a.pode('pessoas') || a.pode('conversas'), <RetornosCombinados />)} />
             <Route path="/leads/:id" element={so(veFichas, <LeadDetail />)} />
             <Route path="/configuracoes" element={<Configuracoes />} />
           </Route>
