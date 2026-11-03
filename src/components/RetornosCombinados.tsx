@@ -121,7 +121,7 @@ export default function RetornosCombinados({ leadId, podeEditar }: { leadId: str
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 12.5, color: '#6B818C' }}>Motivo</span>
             <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} maxLength={300} rows={2}
-              placeholder="Ex.: pediu para falar de novo depois da viagem, sobre o pacote de limpeza de pele"
+              placeholder="Ex.: vai fazer o clareamento depois do casamento da filha, em novembro"
               style={{ ...campo, resize: 'vertical', lineHeight: 1.45 }} />
             <span style={{ fontSize: 11.5, color: '#8AA0AA' }}>
               Anotação para a equipe: a {nomeAgente} usa o assunto, mas não copia o texto.
