@@ -124,7 +124,8 @@ export default function RetornosCombinados({ leadId, podeEditar }: { leadId: str
               placeholder="Ex.: vai fazer o clareamento depois do casamento da filha, em novembro"
               style={{ ...campo, resize: 'vertical', lineHeight: 1.45 }} />
             <span style={{ fontSize: 11.5, color: '#8AA0AA' }}>
-              Anotação para a equipe: a {nomeAgente} usa o assunto, mas não copia o texto.
+              Anotação para a equipe: a {nomeAgente} usa o assunto, mas não copia o texto. Se for dar uma
+              notícia, escreva o fato aqui (ex.: "aprovado em 10/11"): ela só afirma o que estiver escrito.
             </span>
           </div>
           {erro && <div style={{ fontSize: 12.5, color: '#DC2626' }}>{erro}</div>}
