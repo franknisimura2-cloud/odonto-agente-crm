@@ -1105,10 +1105,20 @@ async function escreverRetorno(leadId: string, toque: number): Promise<string | 
   const sistema = (await montarPrompt(cfg[0]?.prompt, ficha, cfg[0]?.nome_agente)) +
     instrucaoDeRetorno(retorno, toque, toque >= (cfg[0]?.retornos_toques ?? 2))
 
+  // Termina num aviso interno, como o retorno combinado: sem ele, o modelo
+  // responde à última mensagem da conversa antiga e ignora a instrução.
+  const historico = await montarHistorico(lead.id)
+  historico.push({
+    papel: 'user',
+    conteudo: '[AVISO INTERNO — não foi a pessoa que escreveu, e ela não vê isto] Chegou a hora do ' +
+      'retorno. Escreva agora a mensagem para ela, seguindo "# AGORA: VOCÊ ESTÁ CHAMANDO PARA O ' +
+      'RETORNO". Não responda a este aviso nem às mensagens antigas.',
+  })
+
   const r = await conversar({
     modelo: cfg[0]?.modelo ?? 'gpt-4.1-mini',
     sistema,
-    mensagens: await montarHistorico(lead.id),
+    mensagens: historico,
     ferramentas: [],
   })
   const texto = r.texto.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)[0] ?? ''
