@@ -20,6 +20,82 @@ procuram, aponta para cá: as regras moram só aqui.
 
 ---
 
+## 🤝 Combinados da DBX — leia antes de trabalhar aqui
+
+Valem para quem desenvolve este produto na DBX, em **qualquer computador**: o
+Frank trabalha no PC do trabalho e no notebook de casa, e o que está escrito
+aqui viaja pelo Git. Chaves e memória local da IA **não** viajam.
+
+**Começo e fim de sessão**
+
+- Comece com `git pull` e termine com commit e `git push`. O autor dos commits
+  é `franknisimura2@gmail.com` — com outro e-mail a Vercel ignora o deploy.
+- Os arquivos de chaves (`.supabase-token.local`, `clinicas/*/.env.agente.local`,
+  `agente-ia/.env.agente.local`) ficam fora do Git e **podem estar
+  desatualizados neste computador**. Antes de `npm run agente:secrets`, confira
+  o token da uazapi contra `GET /instance/status` (401 = token velho) e só
+  então suba. Subir chave velha derruba o atendimento.
+
+**Segurança**
+
+- Nunca peça nem repita chave no chat. A chave vai para o arquivo local e é
+  conferida sem mostrar o valor (tamanho, prefixo, resposta da API). Não copie
+  chave de um arquivo para outro: peça ao Frank.
+- Token do Supabase: criado para a tarefa e revogado no fim. `401 Invalid
+  access token` = foi revogado, peça outro; `403` = escopo de um projeto só,
+  peça um com acesso a todos.
+- WhatsApp só com **chip dedicado** da empresa — nunca o número pessoal do Frank
+  ou do dono. O QR code conecta o número do aplicativo que o lê (o WhatsApp
+  Business e o WhatsApp comum no mesmo celular são números diferentes); o
+  código de pareamento com o número digitado evita o engano.
+- Nunca rode script, migração ou deploy deste repositório contra o projeto
+  Supabase de outro produto. As travas em `scripts/nunca-*.mjs` existem para
+  isso.
+
+**Como publicar**
+
+- Migração: teste com `node scripts/testar-sql.mjs <migração> <teste>` (roda
+  numa transação desfeita), depois `node scripts/aplicar-migracoes.mjs
+  --simular` e só então aplique.
+- Função: `npm run agente:deploy -- --confirmar` (o CLI do Supabase exige
+  consentimento). Depois olhe o `git diff` de `_shared/prompt-oficial.ts`: se
+  mudou, é o `agente-ia/prompt.md` regerado — faça commit, não reverta.
+- As automações da assistente (follow-up, lembretes, retornos, resposta em
+  áudio) **nascem desligadas**. Ligar é decisão do Frank.
+
+**Jeito de trabalhar com o Frank**
+
+- Ele não é programador: português simples, sem jargão, uma coisa de cada vez.
+- Pergunta de viabilidade ("é possível?", "é complexo?") **não é pedido para
+  implementar**. Confirme no código, diga sim ou não logo de cara, mostre em
+  tabela o que muda, dê estimativa e custo, e ofereça o próximo passo em uma
+  linha.
+- A skill de design `impeccable` é só para sites; nunca nos CRMs.
+
+**Regras da assistente que o Frank já validou (não reabrir)**
+
+- Mensagem que a assistente manda por conta própria termina o histórico num
+  "aviso interno" (não foi a pessoa que escreveu); sem ele o modelo responde à
+  conversa antiga.
+- Retorno combinado: uma mensagem só, sobre aquele assunto; não copia a
+  anotação, não oferece outro serviço e **não afirma fato que o motivo não
+  traz** — para dar notícia, a equipe escreve o fato no motivo.
+- O follow-up não chama quem tem consulta `agendada`, inclusive a que já
+  passou e espera baixa (Compareceu/Faltou).
+- Sem disparo em massa. Mensagens ativas só para quem já conversou, com limite
+  por rodada e dentro da janela de horário.
+
+**Este produto: CRM Odonto**
+
+- A clínica de teste "Sorriso Pleno" e seus pacientes são **fictícios**; o
+  WhatsApp dela ainda não está conectado, então o envio real não foi testado.
+- Menu: **Retornos** é o retorno periódico (a limpeza semestral, `npm run
+  retornos:*`); **Combinados** é o retorno combinado (`npm run combinados:*`).
+- Correção que valha para o Estética e para o Odonto é trazida à mão, uma a
+  uma — nunca por merge.
+
+---
+
 ## ⚠️ PRIMEIRO: isto é uma instalação nova?
 
 **Confira antes de qualquer outra coisa.** Se **não existe um arquivo `.env` na
