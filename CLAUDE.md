@@ -87,6 +87,11 @@ aqui viaja pelo Git. Chaves e memória local da IA **não** viajam.
 
 **Este produto: CRM Odonto**
 
+- O projeto Supabase deste produto fica na organização **gratuita "DBX
+  Testes"** desde 16/11/2026 (o Pro ficou só para Estética e Mandato). No plano
+  grátis o projeto é pausado após cerca de uma semana sem uso e não tem cópia
+  diária: se o banco não responder, reative no painel. Quando for para cliente
+  real, volta para uma organização Pro.
 - A clínica de teste "Sorriso Pleno" e seus pacientes são **fictícios**; o
   WhatsApp dela ainda não está conectado, então o envio real não foi testado.
 - Menu: **Retornos** é o retorno periódico (a limpeza semestral, `npm run
